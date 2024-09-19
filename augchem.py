@@ -79,9 +79,8 @@ class Loader:
         return valid_mols, invalid_mols
     
 class Augmentator(object):
-    def __init__(self, seed, fusion=False):
+    def __init__(self, seed):
         self.seed = seed
-        self.fusion = fusion
 
     def slice_smiles(self, smiles):
         """
@@ -212,11 +211,38 @@ class Augmentator(object):
 
         return ''.join(tokens)
     
+    def fusion(self, smiles, mask_ratio = 0.05, delete_ratio = 0.3):
+        """
+        Fusion of mask, delete and swap functions. 0 represents mask, 1 represents delete and 2 represents swap.
+        # Params:
+        smiles: str - SMILES
+
+        mask_ratio: float - ratio of tokens to mask
+
+        delete_ratio: float - ratio of tokens to delete
+        """
+        np.random.seed(self.seed)
+
+        chosen = np.random.choice(3, 1)[0]  # Ensure chosen is an integer
+        print(chosen)
+
+        string = ''
+
+        if chosen == 0:
+            return self.mask(smiles, mask_ratio)
+        elif chosen == 1:
+            return self.delete(smiles, delete_ratio)
+        else:
+            return self.swap(smiles)
+        
+    
 aug = Augmentator(seed=65)
 mask_test = aug.mask("CC(=O)OC1=CC=CC=C1C(=O)O", mask_ratio=0.1)
 delete_test = aug.delete("CC(=O)OC1=CC=CC=C1C(=O)O", delete_ratio=0.3)
 swap_test = aug.swap("CC(=O)OC1=CC=CC=C1C(=O)O")
+fusion_test = aug.fusion("CC(=O)OC1=CC=CC=C1C(=O)O", mask_ratio=0.1, delete_ratio=0.3)
 
 print("Mask:", mask_test)
 print("Delete:", delete_test)
 print("Swap:", swap_test)
+print("Fusion:", fusion_test)
