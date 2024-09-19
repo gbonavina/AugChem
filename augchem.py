@@ -224,7 +224,7 @@ class Augmentator(object):
         np.random.seed(self.seed)
 
         chosen = np.random.choice(3, 1)[0]  # Ensure chosen is an integer
-        print(chosen)
+        #print(chosen)
 
         string = ''
 
