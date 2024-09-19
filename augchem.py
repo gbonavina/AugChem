@@ -5,8 +5,6 @@ from rdkit import RDLogger
 import numpy as np
 import time
 
-RDLogger.DisableLog('rdApp.error')
-
 class Loader:
     def __init__(self, path):
         self.path = path
