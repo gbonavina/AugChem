@@ -1,7 +1,6 @@
 import os
 import re
 from rdkit import Chem
-from rdkit import RDLogger
 import numpy as np
 import time
 
