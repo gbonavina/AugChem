@@ -226,8 +226,6 @@ class Augmentator(object):
         chosen = np.random.choice(3, 1)[0]  # Ensure chosen is an integer
         #print(chosen)
 
-        string = ''
-
         if chosen == 0:
             return self.mask(smiles, mask_ratio)
         elif chosen == 1:
