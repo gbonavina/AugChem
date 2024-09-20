@@ -1,15 +1,14 @@
 import os
-import re
 from rdkit import Chem
 import numpy as np
-import time
+from typing import List, Tuple, Optional
 
 class Loader:
-    def __init__(self, path):
-        self.path = path
-        self.data = None
+    def __init__(self, path: str):
+        self.path: str = path
+        self.data: Optional[List] = None
 
-    def loadSingleFile(self, file):
+    def loadSingleFile(self, file: str) -> List[List[str]]:
         """
         Carrega um arquivo de um dataset
         # Parâmetros:
@@ -17,27 +16,18 @@ class Loader:
         """
         with open(file, 'r') as f:
             # Número de átomos
-            natoms = int(f.readline())
+            natoms: int = int(f.readline())
             f.readline()  # Pula a segunda linha
             
-            smiles = []
+            smiles: List[List[str]] = []
         
             for num_line, line in enumerate(f):
                 if num_line == natoms + 1:
                     smiles.append(line.split())
 
-            match = re.search(r'dsgdb9nsd_(\d+)', file)
-            if match:
-                file_number = match.group(1)
-            else:
-                file_number = "unknown"
-
-            return {
-                "file": file_number,
-                "smiles": smiles
-            }
+            return smiles
         
-    def loadDataset(self, directory_path, list_mols=[]):
+    def loadDataset(self, directory_path: str, list_mols: List = []) -> List:
         """Load the entire QM9 dataset from a directory containing .xyz files.
         # Parâmetros:
         directory_path: str - caminho do diretório contendo os arquivos .xyz
@@ -45,12 +35,12 @@ class Loader:
         """
 
         # Contador para limitar o número de moléculas carregadas para facilitar em testes menores
-        cont = 0
+        cont: int = 0
 
         for file in os.listdir(directory_path):
-            if file.endswith(".xyz") and cont != 20:
-                file_path = os.path.join(directory_path, file)
-                mol = self.loadSingleFile(file_path)
+            if file.endswith(".xyz") and cont != 50:
+                file_path: str = os.path.join(directory_path, file)
+                mol: List[List[str]] = self.loadSingleFile(file_path)
                 list_mols.append(mol)
 
                 #print(f"Loaded {file}")
@@ -58,16 +48,16 @@ class Loader:
 
         return list_mols
 
-    def verifyMolecules(self, list_mols):
+    def verifyMolecules(self, list_mols: List) -> Tuple[List[str], List[str]]:
         """Verifica se as moléculas foram importadas corretamente usando RDKit.
         # Parâmetros:
         list_mols: list - lista de moléculas
         """
-        valid_mols = []
-        invalid_mols = []
+        valid_mols: List[str] = []
+        invalid_mols: List[str] = []
 
         for mol in list_mols:
-            smiles = mol["smiles"][0][0]
+            smiles: str = mol[0][0]
             rdkit_mol = Chem.MolFromSmiles(smiles)
             if rdkit_mol:
                 valid_mols.append(smiles)
@@ -78,31 +68,32 @@ class Loader:
 
         return valid_mols, invalid_mols
     
-class Augmentator(object):
-    def __init__(self, seed):
-        self.seed = seed
+class Augmentator:
+    def __init__(self, seed: int):
+        self.seed: int = seed
+        np.random.seed(self.seed)
 
-    def slice_smiles(self, smiles):
+    def slice_smiles(self, smiles: str) -> List[str]:
         """
         Slice a SMILES string into tokens.
         # Params:
         smiles: str - SMILES
         """
-        sliced_smiles = []
-        i = 0
+        sliced_smiles: List[str] = []
+        i: int = 0
         while i < len(smiles):
             if smiles[i] == '(' or smiles[i] == '[':
                 # Handle parentheses and brackets
-                end = smiles.find(')', i) if smiles[i] == '(' else smiles.find(']', i)
+                end: int = smiles.find(')', i) if smiles[i] == '(' else smiles.find(']', i)
                 sliced_smiles.append(smiles[i:end+1])
                 i = end + 1
             elif smiles[i].isalpha():
                 # Handle atoms (single letter or two letters)
                 if i + 1 < len(smiles) and smiles[i+1].islower():
-                    atom = smiles[i:i+2]
+                    atom: str = smiles[i:i+2]
                     i += 2
                 else:
-                    atom = smiles[i]
+                    atom: str = smiles[i]
                     i += 1
                 
                 # Check for numbers after the atom
@@ -118,13 +109,13 @@ class Augmentator(object):
 
         return sliced_smiles
     
-    def tokenizer(self, smiles):
+    def tokenizer(self, smiles: str) -> Tuple[List[str], List[int]]:
         # Tokenize the SMILES string
-        charset = set('()[]=#')
-        tokens = []
-        non_charset_indices = []
+        charset: set = set('()[]=#')
+        tokens: List[str] = []
+        non_charset_indices: List[int] = []
 
-        i = 0
+        i: int = 0
         while i < len(smiles):
             if smiles[i] in charset:
                 tokens.append(smiles[i])
@@ -138,7 +129,7 @@ class Augmentator(object):
                     i += 1
                 non_charset_indices.append(len(tokens) - 1)
             elif smiles[i].isdigit():
-                num = ''
+                num: str = ''
                 while i < len(smiles) and smiles[i].isdigit():
                     num += smiles[i]
                     i += 1
@@ -150,7 +141,7 @@ class Augmentator(object):
 
         return tokens, non_charset_indices
     
-    def mask(self, smiles, mask_ratio=0.05):
+    def mask(self, smiles: str, mask_ratio: float = 0.05) -> str:
         """
         Mask a SMILES string with [M] token.
         # Params:
@@ -158,18 +149,17 @@ class Augmentator(object):
 
         mask_ratio: float - ratio of tokens to mask
         """
-        np.random.seed(self.seed)
-        token = '[M]'
-        sliced_smiles = self.slice_smiles(smiles)        
+        token: str = '[M]'
+        sliced_smiles: List[str] = self.slice_smiles(smiles)        
 
-        mask_indices = np.random.choice(len(sliced_smiles), int(len(sliced_smiles) * mask_ratio), replace=False)
+        mask_indices: np.ndarray = np.random.choice(len(sliced_smiles), int(len(sliced_smiles) * mask_ratio), replace=False)
         
         for idx in mask_indices:
             sliced_smiles[idx] = token
 
         return ''.join(sliced_smiles)   
     
-    def delete(self, smiles, delete_ratio=0.3):
+    def delete(self, smiles: str, delete_ratio: float = 0.3) -> str:
         """
         Delete tokens from a SMILES string.
         # Params:
@@ -177,41 +167,33 @@ class Augmentator(object):
 
         delete_ratio: float - ratio of tokens to delete
         """
-        np.random.seed(self.seed)
-        sliced_smiles = self.slice_smiles(smiles)
+        sliced_smiles: List[str] = self.slice_smiles(smiles)
 
-        delete_indices = np.random.choice(len(sliced_smiles), int(len(sliced_smiles) * delete_ratio), replace=False)
-        #print(delete_indices)
+        delete_indices: np.ndarray = np.random.choice(len(sliced_smiles), int(len(sliced_smiles) * delete_ratio), replace=False)
         
         for idx in delete_indices:
             sliced_smiles[idx] = ''
 
         return ''.join(sliced_smiles)
     
-    def swap(self, smiles):
+    def swap(self, smiles: str) -> str:
         """
         Swap two random tokens in a SMILES string.
         # Params:
         smiles: str - SMILES
         """
-        
         # Tokenize the SMILES string
         tokens, non_charset_indices = self.tokenizer(smiles)
-
-        # Perform the swap
-        np.random.seed(self.seed)
         
         # Randomly select two indices to swap
-        idx1, idx2 = np.random.choice(non_charset_indices, 2, replace=False)
+        idx1, idx2 = np.random.choice(non_charset_indices, 2, replace=True)
         
         # Swap the tokens
         tokens[idx1], tokens[idx2] = tokens[idx2], tokens[idx1]
-    
-        #print(f"Swapped {tokens[idx1]} with {tokens[idx2]}")
 
         return ''.join(tokens)
     
-    def fusion(self, smiles, mask_ratio = 0.05, delete_ratio = 0.3):
+    def fusion(self, smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3) -> str:
         """
         Fusion of mask, delete and swap functions. 0 represents mask, 1 represents delete and 2 represents swap.
         # Params:
@@ -221,10 +203,7 @@ class Augmentator(object):
 
         delete_ratio: float - ratio of tokens to delete
         """
-        np.random.seed(self.seed)
-
-        chosen = np.random.choice(3, 1)[0]  # Ensure chosen is an integer
-        #print(chosen)
+        chosen: int = np.random.choice(3, 1)[0]  # Ensure chosen is an integer
 
         if chosen == 0:
             return self.mask(smiles, mask_ratio)
@@ -233,14 +212,44 @@ class Augmentator(object):
         else:
             return self.swap(smiles)
         
-    
-aug = Augmentator(seed=65)
-mask_test = aug.mask("CC(=O)OC1=CC=CC=C1C(=O)O", mask_ratio=0.1)
-delete_test = aug.delete("CC(=O)OC1=CC=CC=C1C(=O)O", delete_ratio=0.3)
-swap_test = aug.swap("CC(=O)OC1=CC=CC=C1C(=O)O")
-fusion_test = aug.fusion("CC(=O)OC1=CC=CC=C1C(=O)O", mask_ratio=0.1, delete_ratio=0.3)
+    @staticmethod
+    def generateRandomSmiles(smiles: str, attempts: int = 100) -> Optional[str]:
+        """
+        Generate a valid random SMILES string.
+        # Params:
+        smiles: str - SMILES
+        attempts: int - number of attempts to generate a random SMILES string
+        """
+        mol = Chem.MolFromSmiles(smiles)
+        
+        for _ in range(attempts):
+            # Generate a random SMILES string
+            random_smiles = Chem.MolToSmiles(mol, canonical=False, doRandom=True)
 
-print("Mask:", mask_test)
-print("Delete:", delete_test)
-print("Swap:", swap_test)
-print("Fusion:", fusion_test)
+            if Chem.MolFromSmiles(random_smiles):
+                return random_smiles
+            
+        return None
+    
+    def enumerateSmiles(self, smiles: str, num_randomizations: int = 10, max_unique: int = 1000) -> List[str]:
+        """
+        Create multiple representations of a SMILES string.
+        # Params:
+        smiles: str - SMILES
+        num_randomizations: int - number of attempts to generate random SMILES strings
+        max_unique: int - maximum number of unique SMILES strings to generate
+        """
+        unique_smiles = set()
+        original = Chem.MolFromSmiles(smiles)
+        
+        attempts = 0
+        while len(unique_smiles) < max_unique and attempts < num_randomizations:
+            random_smiles = self.generateRandomSmiles(smiles)
+
+            if random_smiles and random_smiles not in unique_smiles:
+                random_mol = Chem.MolFromSmiles(random_smiles)
+                if Chem.MolToInchi(original) == Chem.MolToInchi(random_mol):
+                    unique_smiles.add(random_smiles)
+            attempts += 1
+
+        return list(unique_smiles)
