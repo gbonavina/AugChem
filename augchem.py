@@ -8,7 +8,7 @@ class Loader:
         self.path: str = path
         self.data: Optional[List] = None
 
-    def loadSingleFile(self, file: str) -> List[List[str]]:
+    def __loadSingleFile(self, file: str) -> List[List[str]]:
         """
         Carrega um arquivo de um dataset
         # Parâmetros:
@@ -38,9 +38,9 @@ class Loader:
         cont: int = 0
 
         for file in os.listdir(directory_path):
-            if file.endswith(".xyz") and cont != 50:
+            if file.endswith(".xyz") and cont != 150:
                 file_path: str = os.path.join(directory_path, file)
-                mol: List[List[str]] = self.loadSingleFile(file_path)
+                mol: List[List[str]] = self.__loadSingleFile(file_path)
                 list_mols.append(mol)
 
                 #print(f"Loaded {file}")
@@ -69,79 +69,95 @@ class Loader:
         return valid_mols, invalid_mols
     
 class Augmentator:
-    def __init__(self, seed: int):
-        self.seed: int = seed
-        np.random.seed(self.seed)
+    def __init__(self, seed: int = 4123):
+        self.seed = seed
+        self.ss = np.random.SeedSequence(self.seed)
 
     def slice_smiles(self, smiles: str) -> List[str]:
         """
-        Slice a SMILES string into tokens.
-        # Params:
+        Fatia uma string SMILES em tokens.
+        # Parâmetros:
         smiles: str - SMILES
         """
         sliced_smiles: List[str] = []
-        i: int = 0
+        i = 0
         while i < len(smiles):
-            if smiles[i] == '(' or smiles[i] == '[':
-                # Handle parentheses and brackets
-                end: int = smiles.find(')', i) if smiles[i] == '(' else smiles.find(']', i)
+            if smiles[i] == '[':
+                # Lida com colchetes
+                end = smiles.find(']', i)
+                token = smiles[i:end+1]
+                # Inclui números imediatamente após o colchete de fechamento
+                while end + 1 < len(smiles) and smiles[end+1].isdigit():
+                    token += smiles[end+1]
+                    end += 1
+                sliced_smiles.append(token)
+                i = end + 1
+            elif smiles[i] == '(':
+                # Lida com parênteses
+                end = smiles.find(')', i)
                 sliced_smiles.append(smiles[i:end+1])
                 i = end + 1
             elif smiles[i].isalpha():
-                # Handle atoms (single letter or two letters)
-                if i + 1 < len(smiles) and smiles[i+1].islower():
-                    atom: str = smiles[i:i+2]
-                    i += 2
+                # Lida com átomos
+                if smiles[i].isupper():
+                    # Átomo maiúsculo (possivelmente seguido por minúsculo)
+                    if i + 1 < len(smiles) and smiles[i+1].islower():
+                        atom = smiles[i:i+2]
+                        i += 2
+                    else:
+                        atom = smiles[i]
+                        i += 1
                 else:
-                    atom: str = smiles[i]
+                    # Átomo minúsculo (sempre um caractere único)
+                    atom = smiles[i]
                     i += 1
                 
-                # Check for numbers after the atom
+                # Verifica números após o átomo
                 while i < len(smiles) and smiles[i].isdigit():
                     atom += smiles[i]
                     i += 1
                 
                 sliced_smiles.append(atom)
+            elif smiles[i].isdigit():
+                # Lida com números isolados
+                num: str = ''
+                while i < len(smiles) and smiles[i].isdigit():
+                    num += smiles[i]
+                    i += 1
+                sliced_smiles.append(num)
             else:
-                # Handle other characters (=, #, etc.)
+                # Lida com outros caracteres (=, #, etc.)
                 sliced_smiles.append(smiles[i])
                 i += 1
 
         return sliced_smiles
     
-    def tokenizer(self, smiles: str) -> Tuple[List[str], List[int]]:
-        # Tokenize the SMILES string
-        charset: set = set('()[]=#')
-        tokens: List[str] = []
-        non_charset_indices: List[int] = []
-
-        i: int = 0
-        while i < len(smiles):
-            if smiles[i] in charset:
-                tokens.append(smiles[i])
-                i += 1
-            elif smiles[i].isalpha():
-                if i + 1 < len(smiles) and smiles[i+1].islower():
-                    tokens.append(smiles[i:i+2])
-                    i += 2
-                else:
-                    tokens.append(smiles[i])
-                    i += 1
-                non_charset_indices.append(len(tokens) - 1)
-            elif smiles[i].isdigit():
-                num: str = ''
-                while i < len(smiles) and smiles[i].isdigit():
-                    num += smiles[i]
-                    i += 1
-                tokens.append(num)
-                non_charset_indices.append(len(tokens) - 1)
-            else:
-                tokens.append(smiles[i])
-                i += 1
+    def atom_positions(self, smiles: str) -> Tuple[List[str], List[int]]:
+        """
+        Tokeniza a string SMILES em uma lista de tokens e uma lista de índices para tokens
+        que não pertencem ao conjunto de caracteres especiais.
+        
+        # Parâmetros:
+        smiles: str - SMILES
+        
+        # Retorna:
+        Tuple[List[str], List[int]] - Uma lista de tokens e uma lista de índices
+        dos tokens que não fazem parte do charset especial.
+        """
+        # Conjunto de caracteres especiais a serem tratados separadamente
+        charset = set(['[', ']', '(', ')', '=', '#', '%', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '0', '@'])
+        
+        tokens = list(smiles)
+        non_charset_indices = []
+        
+        # Usamos enumerate para obter tanto o índice quanto o token
+        for idx, token in enumerate(tokens):
+            if token not in charset:
+                non_charset_indices.append(idx)
 
         return tokens, non_charset_indices
     
-    def mask(self, smiles: str, mask_ratio: float = 0.05) -> str:
+    def mask(self, smiles: str, mask_ratio: float = 0.05, attempts: int = 5) -> str:
         """
         Mask a SMILES string with [M] token.
         # Params:
@@ -149,17 +165,31 @@ class Augmentator:
 
         mask_ratio: float - ratio of tokens to mask
         """
-        token: str = '[M]'
-        sliced_smiles: List[str] = self.slice_smiles(smiles)        
+        token = '[M]'
+        sliced_smiles = self.slice_smiles(smiles)
 
-        mask_indices: np.ndarray = np.random.choice(len(sliced_smiles), int(len(sliced_smiles) * mask_ratio), replace=False)
-        
-        for idx in mask_indices:
-            sliced_smiles[idx] = token
+        masked_smiles = set()
 
-        return ''.join(sliced_smiles)   
+        for _ in range(attempts):
+            # Criar um novo gerador de números aleatórios para garantir variação
+            rng = np.random.default_rng(self.ss.spawn(1)[0])
+            masked = sliced_smiles.copy() 
+            
+            # Gerar os índices de forma aleatória com base no novo RNG
+            mask_indices = rng.choice(len(masked), int(len(masked) * mask_ratio), replace=False)
+            
+            for idx in mask_indices:
+                masked[idx] = token
+
+            if ''.join(masked) not in masked_smiles:
+                masked_smiles.add(''.join(masked))
+            else: 
+                # Se o SMILES mascarado já estiver no conjunto, tente novamente
+                attempts += 1
+
+        return list(masked_smiles)   
     
-    def delete(self, smiles: str, delete_ratio: float = 0.3) -> str:
+    def delete(self, smiles: str, delete_ratio: float = 0.3, attempts: int = 5) -> str:
         """
         Delete tokens from a SMILES string.
         # Params:
@@ -167,31 +197,52 @@ class Augmentator:
 
         delete_ratio: float - ratio of tokens to delete
         """
-        sliced_smiles: List[str] = self.slice_smiles(smiles)
+        deleted_smiles = set()
+        sliced_smiles = self.slice_smiles(smiles)
 
-        delete_indices: np.ndarray = np.random.choice(len(sliced_smiles), int(len(sliced_smiles) * delete_ratio), replace=False)
-        
-        for idx in delete_indices:
-            sliced_smiles[idx] = ''
+        for _ in range(attempts):
+            # Criar um novo gerador de números aleatórios para garantir variação
+            rng = np.random.default_rng(self.ss.spawn(1)[0])
+            deleted = sliced_smiles.copy()
+            
+            # Gerar os índices de forma aleatória com base no novo RNG
+            delete_indices = rng.choice(len(deleted), int(len(deleted) * delete_ratio), replace=False)
+            
+            for idx in delete_indices:
+                deleted[idx] = ''
 
-        return ''.join(sliced_smiles)
+            if ''.join(deleted) not in deleted_smiles:
+                deleted_smiles.add(''.join(deleted))
+            else:
+                # Se o SMILES excluído já estiver no conjunto, tente novamente
+                attempts += 1
+
+        return list(deleted_smiles)
     
-    def swap(self, smiles: str) -> str:
+    def swap(self, smiles: str, attempts: int = 5) -> str:
         """
         Swap two random tokens in a SMILES string.
         # Params:
         smiles: str - SMILES
         """
         # Tokenize the SMILES string
-        tokens, non_charset_indices = self.tokenizer(smiles)
-        
-        # Randomly select two indices to swap
-        idx1, idx2 = np.random.choice(non_charset_indices, 2, replace=True)
-        
-        # Swap the tokens
-        tokens[idx1], tokens[idx2] = tokens[idx2], tokens[idx1]
+        tokens, non_charset_indices = self.atom_positions(smiles)
+        swapped_smiles = set()
 
-        return ''.join(tokens)
+        for _ in range(attempts):
+            # Randomly select two indices to swap
+            idx1, idx2 = np.random.choice(non_charset_indices, 2, replace=True)
+            
+            # Swap the tokens
+            tokens[idx1], tokens[idx2] = tokens[idx2], tokens[idx1]
+
+            if ''.join(tokens) not in swapped_smiles:
+                swapped_smiles.add(''.join(tokens))
+            else: 
+                # If the swapped SMILES is already in the set, try again
+                attempts += 1
+
+        return list(swapped_smiles)
     
     def fusion(self, smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3) -> str:
         """
@@ -203,7 +254,7 @@ class Augmentator:
 
         delete_ratio: float - ratio of tokens to delete
         """
-        chosen: int = np.random.choice(3, 1)[0]  # Ensure chosen is an integer
+        chosen = np.random.choice(3, 1)[0]  # Ensure chosen is an integer
 
         if chosen == 0:
             return self.mask(smiles, mask_ratio)
@@ -221,6 +272,8 @@ class Augmentator:
         attempts: int - number of attempts to generate a random SMILES string
         """
         mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise ValueError(f"Invalid SMILES string: {smiles}")
         
         for _ in range(attempts):
             # Generate a random SMILES string
@@ -241,6 +294,8 @@ class Augmentator:
         """
         unique_smiles = set()
         original = Chem.MolFromSmiles(smiles)
+        if original is None:
+            raise ValueError(f"Invalid SMILES string: {smiles}")
         
         attempts = 0
         while len(unique_smiles) < max_unique and attempts < num_randomizations:
@@ -253,3 +308,8 @@ class Augmentator:
             attempts += 1
 
         return list(unique_smiles)
+    
+
+aug = Augmentator(seed=23)
+
+print(aug.mask('NC1=CN=NN1C1CC1', mask_ratio=0.2, attempts=10))
