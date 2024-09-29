@@ -308,8 +308,3 @@ class Augmentator:
             attempts += 1
 
         return list(unique_smiles)
-    
-
-aug = Augmentator(seed=23)
-
-print(aug.mask('NC1=CN=NN1C1CC1', mask_ratio=0.2, attempts=10))
