@@ -75,74 +75,83 @@ class Augmentator:
 
     def slice_smiles(self, smiles: str) -> List[str]:
         """
-        Fatia uma string SMILES em tokens.
-        # Parâmetros:
+        Slice SMILES strings into tokens.
+        
+        Parameters:
         smiles: str - SMILES
+        
+        Returns:
+        List[str] - A list of SMILES tokens
         """
+        # Step 1: Convert to uppercase, preserving original case information
+        original_case = smiles
+        upper_smiles = smiles.upper()
+        
+        # Step 2: Slice the uppercase SMILES
         sliced_smiles: List[str] = []
         i = 0
-        while i < len(smiles):
-            if smiles[i] == '[':
-                # Lida com colchetes
-                end = smiles.find(']', i)
-                token = smiles[i:end+1]
-                # Inclui números imediatamente após o colchete de fechamento
-                while end + 1 < len(smiles) and smiles[end+1].isdigit():
-                    token += smiles[end+1]
+        while i < len(upper_smiles):
+            if upper_smiles[i] == '[':
+                # Handle brackets
+                end = upper_smiles.find(']', i)
+                token = upper_smiles[i:end+1]
+                # Include numbers immediately after the closing bracket
+                while end + 1 < len(upper_smiles) and upper_smiles[end+1].isdigit():
+                    token += upper_smiles[end+1]
                     end += 1
                 sliced_smiles.append(token)
                 i = end + 1
-            elif smiles[i] == '(':
-                # Lida com parênteses
-                end = smiles.find(')', i)
-                sliced_smiles.append(smiles[i:end+1])
-                i = end + 1
-            elif smiles[i].isalpha():
-                # Lida com átomos
-                if smiles[i].isupper():
-                    # Átomo maiúsculo (possivelmente seguido por minúsculo)
-                    if i + 1 < len(smiles) and smiles[i+1].islower():
-                        atom = smiles[i:i+2]
-                        i += 2
-                    else:
-                        atom = smiles[i]
-                        i += 1
-                else:
-                    # Átomo minúsculo (sempre um caractere único)
-                    atom = smiles[i]
+            elif upper_smiles[i] == '(':
+                # Handle parentheses (including nested ones)
+                paren_count = 1
+                end = i + 1
+                while end < len(upper_smiles) and paren_count > 0:
+                    if upper_smiles[end] == '(':
+                        paren_count += 1
+                    elif upper_smiles[end] == ')':
+                        paren_count -= 1
+                    end += 1
+                sliced_smiles.append(upper_smiles[i:end])
+                i = end
+            elif upper_smiles[i].isalpha():
+                # Handle atoms
+                atom = upper_smiles[i]
+                i += 1
+                # Check for numbers after the atom
+                while i < len(upper_smiles) and upper_smiles[i].isdigit():
+                    atom += upper_smiles[i]
                     i += 1
-                
-                # Verifica números após o átomo
-                while i < len(smiles) and smiles[i].isdigit():
-                    atom += smiles[i]
-                    i += 1
-                
                 sliced_smiles.append(atom)
-            elif smiles[i].isdigit():
-                # Lida com números isolados
-                num: str = ''
-                while i < len(smiles) and smiles[i].isdigit():
-                    num += smiles[i]
+            elif upper_smiles[i].isdigit():
+                # Handle isolated numbers
+                num = ''
+                while i < len(upper_smiles) and upper_smiles[i].isdigit():
+                    num += upper_smiles[i]
                     i += 1
                 sliced_smiles.append(num)
             else:
-                # Lida com outros caracteres (=, #, etc.)
-                sliced_smiles.append(smiles[i])
+                # Handle other characters (=, #, etc.)
+                sliced_smiles.append(upper_smiles[i])
                 i += 1
-
-        return sliced_smiles
+        
+        # Step 3: Restore original case
+        restored_smiles = []
+        start_index = 0
+        for token in sliced_smiles:
+            token_length = len(token)
+            original_token = original_case[start_index:start_index + token_length]
+            restored_smiles.append(original_token)
+            start_index += token_length
+        
+        return restored_smiles
     
     def atom_positions(self, smiles: str) -> Tuple[List[str], List[int]]:
         """
-        Tokeniza a string SMILES em uma lista de tokens e uma lista de índices para tokens
-        que não pertencem ao conjunto de caracteres especiais.
+        Slice SMILES string into a list of tokens and a list of indices for tokens that do not belong 
+        to the special charset.
         
-        # Parâmetros:
+        # Parameters:
         smiles: str - SMILES
-        
-        # Retorna:
-        Tuple[List[str], List[int]] - Uma lista de tokens e uma lista de índices
-        dos tokens que não fazem parte do charset especial.
         """
         # Conjunto de caracteres especiais a serem tratados separadamente
         charset = set(['[', ']', '(', ')', '=', '#', '%', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '0', '@'])
@@ -160,7 +169,7 @@ class Augmentator:
     def mask(self, smiles: str, mask_ratio: float = 0.05, attempts: int = 5) -> str:
         """
         Mask a SMILES string with [M] token.
-        # Params:
+        # Parameters:
         smiles: str - SMILES
 
         mask_ratio: float - ratio of tokens to mask
@@ -192,7 +201,7 @@ class Augmentator:
     def delete(self, smiles: str, delete_ratio: float = 0.3, attempts: int = 5) -> str:
         """
         Delete tokens from a SMILES string.
-        # Params:
+        # Parameters:
         smiles: str - SMILES
 
         delete_ratio: float - ratio of tokens to delete
@@ -222,7 +231,7 @@ class Augmentator:
     def swap(self, smiles: str, attempts: int = 5) -> str:
         """
         Swap two random tokens in a SMILES string.
-        # Params:
+        # Parameters:
         smiles: str - SMILES
         """
         # Tokenize the SMILES string
@@ -247,7 +256,7 @@ class Augmentator:
     def fusion(self, smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3) -> str:
         """
         Fusion of mask, delete and swap functions. 0 represents mask, 1 represents delete and 2 represents swap.
-        # Params:
+        # Parameters:
         smiles: str - SMILES
 
         mask_ratio: float - ratio of tokens to mask
@@ -287,7 +296,7 @@ class Augmentator:
     def enumerateSmiles(self, smiles: str, num_randomizations: int = 10, max_unique: int = 1000) -> List[str]:
         """
         Create multiple representations of a SMILES string.
-        # Params:
+        # Parameters:
         smiles: str - SMILES
         num_randomizations: int - number of attempts to generate random SMILES strings
         max_unique: int - maximum number of unique SMILES strings to generate
@@ -308,3 +317,8 @@ class Augmentator:
             attempts += 1
 
         return list(unique_smiles)
+    
+if __name__ == '__main__':
+    aug = Augmentator(seed=23)
+    smiles = aug.slice_smiles('N[C]1C(=C([NH])ON=C1)O')
+    print(smiles)
