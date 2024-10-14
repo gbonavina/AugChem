@@ -1,7 +1,9 @@
 import os
 from rdkit import Chem
+#import deepchem
 import numpy as np
 from typing import List, Tuple, Optional
+import re
 
 class Loader:
     def __init__(self, path: str):
@@ -12,7 +14,7 @@ class Loader:
         """
         Carrega um arquivo de um dataset
         # Parâmetros:
-        file: str - caminho do arquivo
+        `file`: str - caminho do arquivo
         """
         with open(file, 'r') as f:
             # Número de átomos
@@ -30,8 +32,9 @@ class Loader:
     def loadDataset(self, directory_path: str, list_mols: List = []) -> List:
         """Load the entire QM9 dataset from a directory containing .xyz files.
         # Parâmetros:
-        directory_path: str - caminho do diretório contendo os arquivos .xyz
-        list_mols: list - lista de moléculas
+        `directory_path`: str - caminho do diretório contendo os arquivos .xyz
+
+        `list_mols`: list - lista de moléculas
         """
 
         # Contador para limitar o número de moléculas carregadas para facilitar em testes menores
@@ -49,9 +52,9 @@ class Loader:
         return list_mols
 
     def verifyMolecules(self, list_mols: List) -> Tuple[List[str], List[str]]:
-        """Verifica se as moléculas foram importadas corretamente usando RDKit.
-        # Parâmetros:
-        list_mols: list - lista de moléculas
+        """Verify if the molecules were correctly imported using RDKit.
+        # Parameters:
+        `list_mols`: list - list of molecules
         """
         valid_mols: List[str] = []
         invalid_mols: List[str] = []
@@ -73,77 +76,19 @@ class Augmentator:
         self.seed = seed
         self.ss = np.random.SeedSequence(self.seed)
 
-    def slice_smiles(self, smiles: str) -> List[str]:
+    def tokenize(self, smiles: str):
         """
-        Slice SMILES strings into tokens.
-        
-        Parameters:
-        smiles: str - SMILES
-        
-        Returns:
-        List[str] - A list of SMILES tokens
+        Slice SMILES string into tokens from a REGEX pattern. This will be used for masking and deleting functions.
+
+        # Parameters:
+        `smiles`: str - SMILES
         """
-        # Step 1: Convert to uppercase, preserving original case information
-        original_case = smiles
-        upper_smiles = smiles.upper()
-        
-        # Step 2: Slice the uppercase SMILES
-        sliced_smiles: List[str] = []
-        i = 0
-        while i < len(upper_smiles):
-            if upper_smiles[i] == '[':
-                # Handle brackets
-                end = upper_smiles.find(']', i)
-                token = upper_smiles[i:end+1]
-                # Include numbers immediately after the closing bracket
-                while end + 1 < len(upper_smiles) and upper_smiles[end+1].isdigit():
-                    token += upper_smiles[end+1]
-                    end += 1
-                sliced_smiles.append(token)
-                i = end + 1
-            elif upper_smiles[i] == '(':
-                # Handle parentheses (including nested ones)
-                paren_count = 1
-                end = i + 1
-                while end < len(upper_smiles) and paren_count > 0:
-                    if upper_smiles[end] == '(':
-                        paren_count += 1
-                    elif upper_smiles[end] == ')':
-                        paren_count -= 1
-                    end += 1
-                sliced_smiles.append(upper_smiles[i:end])
-                i = end
-            elif upper_smiles[i].isalpha():
-                # Handle atoms
-                atom = upper_smiles[i]
-                i += 1
-                # Check for numbers after the atom
-                while i < len(upper_smiles) and upper_smiles[i].isdigit():
-                    atom += upper_smiles[i]
-                    i += 1
-                sliced_smiles.append(atom)
-            elif upper_smiles[i].isdigit():
-                # Handle isolated numbers
-                num = ''
-                while i < len(upper_smiles) and upper_smiles[i].isdigit():
-                    num += upper_smiles[i]
-                    i += 1
-                sliced_smiles.append(num)
-            else:
-                # Handle other characters (=, #, etc.)
-                sliced_smiles.append(upper_smiles[i])
-                i += 1
-        
-        # Step 3: Restore original case
-        restored_smiles = []
-        start_index = 0
-        for token in sliced_smiles:
-            token_length = len(token)
-            original_token = original_case[start_index:start_index + token_length]
-            restored_smiles.append(original_token)
-            start_index += token_length
-        
-        return restored_smiles
+
+        SMI_REGEX_PATTERN = r"""(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"""
+        regex = re.compile(SMI_REGEX_PATTERN)
+
+        tokens = [token for token in regex.findall(smiles)]
+        return tokens
     
     def atom_positions(self, smiles: str) -> Tuple[List[str], List[int]]:
         """
@@ -151,7 +96,7 @@ class Augmentator:
         to the special charset.
         
         # Parameters:
-        smiles: str - SMILES
+        `smiles`: str - SMILES
         """
         # Conjunto de caracteres especiais a serem tratados separadamente
         charset = set(['[', ']', '(', ')', '=', '#', '%', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '0', '@'])
@@ -170,12 +115,15 @@ class Augmentator:
         """
         Mask a SMILES string with [M] token.
         # Parameters:
-        smiles: str - SMILES
+        `smiles`: str - SMILES
 
-        mask_ratio: float - ratio of tokens to mask
+        `mask_ratio`: float - ratio of tokens to mask
         """
+        # É necessário estudar os testes do modelo para caso fazer o mask apenas em strings ou podemos fazer nos índices também.
+        # Atualmente está dando o mask em tudo que é possível.
+        
         token = '[M]'
-        sliced_smiles = self.slice_smiles(smiles)
+        sliced_smiles = self.tokenize(smiles)
 
         masked_smiles = set()
 
@@ -202,12 +150,12 @@ class Augmentator:
         """
         Delete tokens from a SMILES string.
         # Parameters:
-        smiles: str - SMILES
+        `smiles`: str - SMILES
 
-        delete_ratio: float - ratio of tokens to delete
+        `delete_ratio`: float - ratio of tokens to delete
         """
         deleted_smiles = set()
-        sliced_smiles = self.slice_smiles(smiles)
+        sliced_smiles = self.tokenize(smiles)
 
         for _ in range(attempts):
             # Criar um novo gerador de números aleatórios para garantir variação
@@ -232,9 +180,10 @@ class Augmentator:
         """
         Swap two random tokens in a SMILES string.
         # Parameters:
-        smiles: str - SMILES
+        `smiles`: str - SMILES
         """
         # Tokenize the SMILES string
+        # In this case we're not swapping special characters, but it's a thing we should study if it affects the model or not.
         tokens, non_charset_indices = self.atom_positions(smiles)
         swapped_smiles = set()
 
@@ -257,11 +206,11 @@ class Augmentator:
         """
         Fusion of mask, delete and swap functions. 0 represents mask, 1 represents delete and 2 represents swap.
         # Parameters:
-        smiles: str - SMILES
+        `smiles`: str - SMILES
 
-        mask_ratio: float - ratio of tokens to mask
+        `mask_ratio`: float - ratio of tokens to mask
 
-        delete_ratio: float - ratio of tokens to delete
+        `delete_ratio`: float - ratio of tokens to delete
         """
         chosen = np.random.choice(3, 1)[0]  # Ensure chosen is an integer
 
@@ -277,8 +226,9 @@ class Augmentator:
         """
         Generate a valid random SMILES string.
         # Params:
-        smiles: str - SMILES
-        attempts: int - number of attempts to generate a random SMILES string
+        `smiles`: str - SMILES
+
+        `attempts`: int - number of attempts to generate a random SMILES string
         """
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
@@ -297,9 +247,11 @@ class Augmentator:
         """
         Create multiple representations of a SMILES string.
         # Parameters:
-        smiles: str - SMILES
-        num_randomizations: int - number of attempts to generate random SMILES strings
-        max_unique: int - maximum number of unique SMILES strings to generate
+        `smiles`: str - SMILES
+
+        `num_randomizations`: int - number of attempts to generate random SMILES strings
+
+        `max_unique`: int - maximum number of unique SMILES strings to generate
         """
         unique_smiles = set()
         original = Chem.MolFromSmiles(smiles)
@@ -320,5 +272,5 @@ class Augmentator:
     
 if __name__ == '__main__':
     aug = Augmentator(seed=23)
-    smiles = aug.slice_smiles('N[C]1C(=C([NH])ON=C1)O')
+    smiles = aug.mask('N[C]1C(=C([NH])ON=C1)O', mask_ratio=0.15)
     print(smiles)
