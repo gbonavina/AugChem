@@ -22,13 +22,13 @@ class Loader:
             f.readline()  # Pula a segunda linha
             
             smiles: List[List[str]] = []
-        
+
             for num_line, line in enumerate(f):
                 if num_line == natoms + 1:
                     smiles.append(line.split())
-
+                    
             return smiles
-        
+
     def loadDataset(self, directory_path: str, list_mols: List = []) -> List:
         """Load the entire QM9 dataset from a directory containing .xyz files.
         # Parâmetros:
