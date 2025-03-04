@@ -1,7 +1,7 @@
+from torch_geometric.data import Data
 from rdkit import Chem
 from rdkit.Chem import BRICS, Draw
-import networkx as nx 
-from smiles_converter import smiles_to_graph
+from smiles_converter import smiles_to_data
 
 """
  2.1.5. Substructure removal
@@ -14,29 +14,35 @@ from smiles_converter import smiles_to_graph
 def brics_decompose(smiles: str):
     """
     Realiza a decomposição BRICS de uma molécula representada por SMILES.
-    Retorna um conjunto de fragmentos SMILES.
+    Retorna uma lista de objetos Data do torch_geometric, 
+    cada um representando um fragmento da molécula.
     """
     mol = Chem.MolFromSmiles(smiles)
     if not mol:
         raise ValueError("SMILES inválido")
-
-    # Realiza a decomposição BRICS
+    
     fragments = BRICS.BRICSDecompose(mol)
     
-    return fragments
-
-def draw_fragments(fragments):
-    """
-    Desenha os fragmentos gerados pela decomposição BRICS.
-    """
-    mols = [Chem.MolFromSmiles(frag) for frag in fragments]
-    img = Draw.MolsToGridImage(mols, molsPerRow=3, subImgSize=(200, 200), legends=[f"Fragment {i+1}" for i in range(len(mols))])
-    img.show()
-
+    data_list = [smiles_to_data(fragment) for fragment in fragments]
+    
+    return data_list
 
 if __name__ == '__main__':
     smiles = "CC(=O)Nc1ccc(C(=O)O)cc1"  # Exemplo: Paracetamol
-    fragments = brics_decompose(smiles)
     
-    draw_fragments(fragments)
-    print("Fragmentos BRICS:", fragments)
+    data_list = brics_decompose(smiles)
+    
+    # Função auxiliar para visualização (usa networkx apenas para desenhar)
+    import matplotlib.pyplot as plt
+    import networkx as nx
+    from torch_geometric.utils import to_networkx
+
+    def draw_molecular_graph(data: Data):
+        G = to_networkx(data, node_attrs=['symbol', 'atomic_num'])
+        pos = nx.spring_layout(G)
+        labels = {node: G.nodes[node]['symbol'] for node in G.nodes()}
+        nx.draw(G, pos, labels=labels, with_labels=True, node_color='skyblue', edge_color='gray')
+        plt.show()
+    
+    for fragment_data in data_list:
+        draw_molecular_graph(fragment_data)
