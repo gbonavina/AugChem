@@ -71,11 +71,13 @@ class Loader:
         return valid_mols, invalid_mols
     
 class Augmentator:
-    def __init__(self, seed: int = 4123):
+    def __init__(self, seed: int = 4123, dataset: List = []):
+        self.dataset = []
         self.seed = seed
         self.ss = np.random.SeedSequence(self.seed)
+        self.rng = np.random.RandomState(seed=seed)
 
-    
+
 if __name__ == '__main__':
     aug = Augmentator(seed=23)
     smiles = aug.mask('N[C]1C(=C([NH])ON=C1)O', mask_ratio=0.15)

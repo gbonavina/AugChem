@@ -183,3 +183,24 @@ def fusion(smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3) -> 
         return delete(smiles, delete_ratio)
     else:
         return swap(smiles)
+    
+def shuffle_and_split(augment_percentage: float = 0.2, dataset: List = [], seed: int = 42) -> Tuple[List[str]]:
+    """
+    Shuffle dataset to augment a certain percentage of the data
+
+    # Parameters:
+    `augment_percentage`: float - percentage of the dataset that will be augmented
+
+    # Returns:
+    `Tuple[List[str]]: Augmented dataset`
+    """
+
+    if not dataset:
+        raise ValueError("Dataset is empty. Load the dataset before trying to augment.")
+    
+    shuffled_data = dataset.copy()  
+    np.random.RandomState(seed=seed).shuffle(shuffled_data)
+
+    split_idx = int(len(shuffled_data) * (1 - augment_percentage))
+
+    return shuffled_data[:split_idx]
