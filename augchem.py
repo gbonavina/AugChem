@@ -1,8 +1,12 @@
 import os
 from rdkit import Chem
+from rdkit import RDLogger
 import numpy as np
 from typing import List, Tuple, Optional
 from modules.smiles.smiles_modules import *
+
+# disable rdkit warnings
+RDLogger.logger().setLevel(RDLogger.ERROR)
 
 class Loader:
     def __init__(self, path: str):
@@ -72,13 +76,39 @@ class Loader:
     
 class Augmentator:
     def __init__(self, seed: int = 4123, dataset: List = []):
-        self.dataset = []
+        self.dataset = dataset
         self.seed = seed
         self.ss = np.random.SeedSequence(self.seed)
         self.rng = np.random.RandomState(seed=seed)
 
+        self.SMILES = self.SMILESModule(self)
+
+    class SMILESModule:
+        def __init__(self, parent):
+            self.parent = parent
+
+        def augment_data(self, mask_ratio: float = 0.05, delete_ratio: float = 0.3, num_enumeration_attempts: int = 10, 
+                         max_unique: int = 100, augment_percentage: float = 0.2):
+
+            data_to_augment = shuffle_and_split(augment_percentage=augment_percentage, 
+                                        dataset=self.parent.dataset)
+            augmented_subset = fusion(data_to_augment, mask_ratio=mask_ratio, delete_ratio=delete_ratio)
+            augmented_subset.extend(enumerateSmiles(self.parent.dataset, num_randomizations=num_enumeration_attempts, max_unique=max_unique))
+
+            return self.parent.dataset + augmented_subset
+            
+    class GraphsModule():
+        def __init__(self, parent):
+            self.parent = parent
+
+    class INCHIModule():
+        def __init__(self, parent):
+            self.parent = parent    
+
 
 if __name__ == '__main__':
-    aug = Augmentator(seed=23)
-    smiles = aug.mask('N[C]1C(=C([NH])ON=C1)O', mask_ratio=0.15)
-    print(smiles)
+    aug = Augmentator(seed=23, dataset=['N[C]1C(=C([NH])ON=C1)O'])
+
+    augmented_data = aug.SMILES.augment_data()
+    
+    print(augmented_data)
