@@ -120,11 +120,15 @@ class Augmentator:
         def __init__(self, parent):
             self.parent = parent
 
-        def augment_data(self, dataset: List[str], mask_ratio: float = 0.)
+        def augment_data(self, dataset: List[str]):
+            pass
 
     class INCHIModule():
         def __init__(self, parent):
             self.parent = parent    
+        
+        def augment_data(self, dataset: List[str]):
+            pass
 
 
 if __name__ == '__main__':
