@@ -75,27 +75,46 @@ class Loader:
         return valid_mols, invalid_mols
     
 class Augmentator:
-    def __init__(self, seed: int = 4123, dataset: List = []):
-        self.dataset = dataset
+    def __init__(self, seed: int = 4123):
         self.seed = seed
         self.ss = np.random.SeedSequence(self.seed)
         self.rng = np.random.RandomState(seed=seed)
 
         self.SMILES = self.SMILESModule(self)
+        self.Graphs = self.GraphsModule(self)
+        self.INCHI = self.INCHIModule(self)
 
     class SMILESModule:
         def __init__(self, parent):
             self.parent = parent
 
-        def augment_data(self, mask_ratio: float = 0.05, delete_ratio: float = 0.3, num_enumeration_attempts: int = 10, 
+        def augment_data(self, dataset: List[str], mask_ratio: float = 0.05, delete_ratio: float = 0.3, num_enumeration_attempts: int = 10, 
                          max_unique: int = 100, augment_percentage: float = 0.2):
+            """
+            Augment SMILES strings using fusion and enumeration methods.
+            
+            # Parameters:
+            `dataset`: List[str] - List of SMILES strings to augment
 
-            data_to_augment = shuffle_and_split(augment_percentage=augment_percentage, 
-                                        dataset=self.parent.dataset)
-            augmented_subset = fusion(data_to_augment, mask_ratio=mask_ratio, delete_ratio=delete_ratio)
-            augmented_subset.extend(enumerateSmiles(self.parent.dataset, num_randomizations=num_enumeration_attempts, max_unique=max_unique))
+            `mask_ratio`: float - Ratio of tokens to mask in fusion method
 
-            return self.parent.dataset + augmented_subset
+            `delete_ratio`: float - Ratio of tokens to delete in fusion method
+
+            `num_enumeration_attempts`: int - Number of attempts for SMILES enumeration
+
+            `max_unique`: int - Maximum number of unique SMILES to generate in enumeration
+
+            `augment_percentage`: float - Percentage of dataset to augment with fusion method
+            
+            # Returns:
+            `List[str]`: Original dataset plus augmented SMILES
+            """
+
+            data_to_augment = shuffle_and_split(augment_percentage=augment_percentage, dataset=dataset)
+            augmented_subset = fusion(data_to_augment, mask_ratio=mask_ratio, delete_ratio=delete_ratio, seed=self.parent.seed)
+            augmented_subset.extend(enumerateSmiles(dataset, num_randomizations=num_enumeration_attempts, max_unique=max_unique))
+
+            return dataset + augmented_subset
             
     class GraphsModule():
         def __init__(self, parent):
@@ -107,8 +126,8 @@ class Augmentator:
 
 
 if __name__ == '__main__':
-    aug = Augmentator(seed=23, dataset=['N[C]1C(=C([NH])ON=C1)O'])
+    aug = Augmentator(seed=2389)
 
-    augmented_data = aug.SMILES.augment_data()
+    augmented_data = aug.SMILES.augment_data(dataset=['N[C]1C(=C([NH])ON=C1)O', 'C1=CC=CC=C1', ' O=C=O', 'CC(=O)C'], mask_ratio=0.10)
     
     print(augmented_data)

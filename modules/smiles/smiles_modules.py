@@ -97,7 +97,7 @@ def enumerateSmiles(smiles, num_randomizations: int = 10, max_unique: int = 1000
     
     return all_unique_smiles
 
-def mask(dataset: List, mask_ratio: float = 0.05, attempts: int = 5, seed = 45) -> List[str]:
+def mask(dataset: List, mask_ratio: float = 0.5, attempts: int = 15, seed = 45) -> List[str]:
     """
     Mask tokens in SMILES strings with [M] token.
     
@@ -197,7 +197,7 @@ def swap(dataset: List, attempts: int = 5, seed = 45) -> List[str]:
     `List[str]`: List of SMILES strings with tokens swapped
     """
     all_swapped_smiles = []
-    
+
     if isinstance(seed, int):
         rng = np.random.RandomState(seed)
     else:
@@ -229,7 +229,7 @@ def swap(dataset: List, attempts: int = 5, seed = 45) -> List[str]:
     
     return all_swapped_smiles
 
-def fusion(dataset: List, mask_ratio: float = 0.05, delete_ratio: float = 0.3, seed = 45) -> List[str]:
+def fusion(dataset: List, mask_ratio: float = 0.05, delete_ratio: float = 0.3, attempts: int = 5, seed = 45) -> List[str]:
     """
     Fusion of mask, delete and swap functions. For each SMILES string,
     randomly choose one of the three augmentation methods.
@@ -238,52 +238,63 @@ def fusion(dataset: List, mask_ratio: float = 0.05, delete_ratio: float = 0.3, s
     `dataset`: List - List of SMILES strings
     `mask_ratio`: float - ratio of tokens to mask
     `delete_ratio`: float - ratio of tokens to delete
-    `seed`: int or numpy.random.Generator - random seed for reproducibility
+    `attempts`: int - number of augmentation attempts per SMILES
+    `seed`: int or numpy.random.RandomState - random seed for reproducibility
     
     # Returns:
     `List[str]`: List of augmented SMILES strings
     """
     augmented_smiles = []
     
-    if isinstance(seed, int):
-        rng = np.random.RandomState(seed)
-    else:
+    if hasattr(seed, 'choice') and callable(seed.choice):
         rng = seed
+    else:
+        rng = np.random.RandomState(seed)
     
-    for smiles in dataset:
+    if not dataset:
+        raise ValueError("Empty dataset isn't a valid dataset.")
+    
+    for i, smiles in enumerate(dataset):
+        # print(f"Processing SMILES {i+1}/{len(dataset)}: {smiles}")
+        
         chosen = rng.choice(3, 1)[0]
         
-        if chosen == 0:
-            # Mask
-            augmented = mask([smiles], mask_ratio=mask_ratio, attempts=1, seed=rng)
-        elif chosen == 1:
-            # Delete
-            augmented = delete([smiles], delete_ratio=delete_ratio, attempts=1, seed=rng)
-        else:
-            # Swap
-            augmented = swap([smiles], attempts=1, seed=rng)
+        try:
+            if chosen == 0:
+                augmented = mask([smiles], mask_ratio=mask_ratio, attempts=attempts, seed=rng)
+            elif chosen == 1:
+                augmented = delete([smiles], delete_ratio=delete_ratio, attempts=attempts, seed=rng)
+            else:
+                augmented = swap([smiles], attempts=attempts, seed=rng)
+            
+            augmented_smiles.extend(augmented)
         
-        augmented_smiles.extend(augmented)
+        except Exception as e:
+            print(f"Error during augmentation of {smiles}: {str(e)}")
+            raise ValueError(e)
     
     return augmented_smiles
     
-def shuffle_and_split(augment_percentage: float = 0.2, dataset: List = [], seed: int = 42) -> Tuple[List[str]]:
+def shuffle_and_split(augment_percentage: float = 0.2, dataset: List = [], seed: int = 45) -> List[str]:
     """
     Shuffle dataset to augment a certain percentage of the data
 
     # Parameters:
     `augment_percentage`: float - percentage of the dataset that will be augmented
+    `dataset`: List - list of SMILES strings
+    `seed`: int - random seed for reproducibility
 
     # Returns:
-    `Tuple[List[str]]: Augmented dataset`
+    `List[str]: Subset of data to augment`
     """
-
+    
     if not dataset:
         raise ValueError("Dataset is empty. Load the dataset before trying to augment.")
     
     shuffled_data = dataset.copy()  
     np.random.RandomState(seed=seed).shuffle(shuffled_data)
 
-    split_idx = int(len(shuffled_data) * (1 - augment_percentage))
-
-    return shuffled_data[:split_idx]
+    split_idx = max(1, int(len(shuffled_data) * (augment_percentage)))
+    subset = shuffled_data[:split_idx]
+    
+    return subset
