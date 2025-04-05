@@ -116,14 +116,14 @@ class Augmentator:
 
             return dataset + augmented_subset
             
-    class GraphsModule():
+    class GraphsModule:
         def __init__(self, parent):
             self.parent = parent
 
         def augment_data(self, dataset: List[str]):
             pass
 
-    class INCHIModule():
+    class INCHIModule:
         def __init__(self, parent):
             self.parent = parent    
         
