@@ -88,7 +88,7 @@ class Augmentator:
         def __init__(self, parent):
             self.parent = parent
 
-        def augment_data(self, dataset: List[str], mask_ratio: float = 0.05, delete_ratio: float = 0.3, num_enumeration_attempts: int = 10, 
+        def augment_data(self, dataset: List[str], mask_ratio: float = 0.1, delete_ratio: float = 0.3, num_enumeration_attempts: int = 10, 
                          max_unique: int = 100, augment_percentage: float = 0.2):
             """
             Augment SMILES strings using fusion and enumeration methods.
@@ -119,6 +119,8 @@ class Augmentator:
     class GraphsModule():
         def __init__(self, parent):
             self.parent = parent
+
+        def augment_data(self, dataset: List[str], mask_ratio: float = 0.)
 
     class INCHIModule():
         def __init__(self, parent):
