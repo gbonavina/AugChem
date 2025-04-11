@@ -2,6 +2,8 @@ from typing import Tuple, List, Optional
 from rdkit import Chem
 import numpy as np
 import re
+import pandas as pd
+import ast
 
 def atom_positions(smiles: str) -> Tuple[List[str], List[int]]:
     """
@@ -274,13 +276,88 @@ def fusion(dataset: List, mask_ratio: float = 0.05, delete_ratio: float = 0.3, a
             raise ValueError(e)
     
     return augmented_smiles
+
+def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask_ratio: float = 0.1, delete_ratio: float = 0.3, attempts: int = 10,
+                    smiles_collumn: str = "SMILES", augment_percentage: float = 0.2, seed: int = 42):
+
+    rng = np.random.RandomState(seed)
+
+    augmented_df = dataset.copy()
+    dataset['single_smiles'] = dataset['SMILES'].apply(lambda x: ast.literal_eval(x) if x.startswith('[') else [x])
+    df_expanded = dataset.explode('single_smiles')
+
+
+    target_new_rows = int(len(dataset) * augment_percentage)
+
+    new_rows = []
+    augmented_count = 0
+
+    while augmented_count < target_new_rows:
+        row_idx = rng.choice(len(df_expanded))
+        original_idx = df_expanded.index[row_idx]
+        row = df_expanded.iloc[row_idx].copy()
+
+        smiles = row['single_smiles']
+
+        try:
+            if "mask" in augmentation_methods:
+                augmented_smiles = mask([smiles], mask_ratio=mask_ratio, attempts=attempts, seed=rng)
+            elif "delete" in augmentation_methods:
+                augmented_smiles = delete([smiles], delete_ratio=delete_ratio, attempts=attempts, seed=rng)
+            elif "swap" in augmentation_methods:
+                augmented_smiles = swap([smiles], attempts=attempts, seed=rng)
+            elif "fusion" in augmentation_methods:
+                augmented_smiles = fusion([smiles], mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
+                                        attempts=attempts, seed=rng)
+            elif "enumeration" in augmentation_methods:
+                augmented_smiles = enumerateSmiles(smiles, num_randomizations=attempts)
+            else:
+                raise ValueError(f"Unknown augmentation methods: {augmentation_methods}")
     
-def shuffle_and_split(augment_percentage: float = 0.2, dataset: List = [], seed: int = 45) -> List[str]:
+            if augmented_smiles:
+                for aug_smiles in augmented_smiles:
+                    # Cria uma nova linha baseada na original
+                    new_row = row.copy()
+                    # Substitui o SMILES pelo aumentado
+                    new_row[smiles_collumn] = aug_smiles
+                    
+                    # Substitui valores de propriedades por "-"
+                    property_columns = [col for col in new_row.index if col.startswith('Property_')]
+                    for prop_col in property_columns:
+                        new_row[prop_col] = "-"
+                    
+                    # Adiciona a nova coluna com o índice da molécula original
+                    new_row['parent_idx'] = original_idx
+                    
+                    new_rows.append(new_row)
+                    augmented_count += 1
+                
+                # Para se já atingiu o número desejado
+                if augmented_count >= target_new_rows:
+                    break
+
+        except Exception as e:
+            print(f"Error augmenting SMILES {smiles}: {str(e)}")
+            continue
+
+    if new_rows:
+        new_data = pd.DataFrame(new_rows)
+        
+        # Remove a coluna temporária
+        if 'single_smiles' in new_data.columns:
+            new_data = new_data.drop(columns=['single_smiles'])
+        
+        # Concatena com o dataset original
+        augmented_df = pd.concat([augmented_df, new_data], ignore_index=True)
+        
+    return augmented_df
+
+    
+def random_select(dataset: pd.DataFrame, seed: int = 45) -> List[str]:
     """
     Shuffle dataset to augment a certain percentage of the data
 
     # Parameters:
-    `augment_percentage`: float - percentage of the dataset that will be augmented
     `dataset`: List - list of SMILES strings
     `seed`: int - random seed for reproducibility
 
@@ -288,13 +365,9 @@ def shuffle_and_split(augment_percentage: float = 0.2, dataset: List = [], seed:
     `List[str]: Subset of data to augment`
     """
     
-    if not dataset:
+    if dataset.empty():
         raise ValueError("Dataset is empty. Load the dataset before trying to augment.")
     
-    shuffled_data = dataset.copy()  
-    np.random.RandomState(seed=seed).shuffle(shuffled_data)
+    data_to_augment = dataset.sample(n=1, random_state=seed, replace=False)
 
-    split_idx = max(1, int(len(shuffled_data) * (augment_percentage)))
-    subset = shuffled_data[:split_idx]
-    
-    return subset
+    return data_to_augment
