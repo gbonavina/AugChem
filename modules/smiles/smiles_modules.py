@@ -60,7 +60,7 @@ def generateRandomSmiles(smiles: str, attempts: int = 100) -> Optional[str]:
         
     return None
     
-def enumerateSmiles(smiles, num_randomizations: int = 10, max_unique: int = 1000) -> List[str]:
+def enumerateSmiles(smiles: str, num_randomizations: int = 10, max_unique: int = 1000) -> List[str]:
     """
     Create multiple representations of a SMILES string or list of SMILES strings.
     
@@ -74,39 +74,31 @@ def enumerateSmiles(smiles, num_randomizations: int = 10, max_unique: int = 1000
     """
     all_unique_smiles = []
     
-    if isinstance(smiles, str):
-        smiles_list = [smiles]
-    else:
-        smiles_list = smiles
+    unique_smiles = set()
+    original = Chem.MolFromSmiles(smiles)  
     
-    for single_smiles in smiles_list:
-        unique_smiles = set()
-        original = Chem.MolFromSmiles(single_smiles)
-        if original is None:
-            continue  
+    attempts = 0
+    while len(unique_smiles) < max_unique and attempts < num_randomizations:
+        random_smiles = generateRandomSmiles(smiles)
         
-        attempts = 0
-        while len(unique_smiles) < max_unique and attempts < num_randomizations:
-            random_smiles = generateRandomSmiles(single_smiles)
-            
-            if random_smiles and random_smiles not in unique_smiles:
-                random_mol = Chem.MolFromSmiles(random_smiles)
-                if Chem.MolToInchi(original) == Chem.MolToInchi(random_mol):
-                    unique_smiles.add(random_smiles)
-            attempts += 1
-        
-        all_unique_smiles.extend(list(unique_smiles))
+        if random_smiles and random_smiles not in unique_smiles:
+            random_mol = Chem.MolFromSmiles(random_smiles)
+            if Chem.MolToInchi(original) == Chem.MolToInchi(random_mol):
+                unique_smiles.add(random_smiles)
+        attempts += 1
     
+    all_unique_smiles.extend(list(unique_smiles))
+
     return all_unique_smiles
 
-def mask(dataset: List, mask_ratio: float = 0.5, attempts: int = 15, seed = 45) -> List[str]:
+def mask(smiles: str, mask_ratio: float = 0.5, attempts: int = 15, seed = 45) -> List[str]:
     """
-    Mask tokens in SMILES strings with [M] token.
+    Mask tokens in a SMILES string with [M] token.
     
     # Parameters:
-    `dataset`: List - List of SMILES strings
+    `smiles`: str - SMILES string to augment
     `mask_ratio`: float - ratio of tokens to mask
-    `attempts`: int - number of masking attempts per SMILES
+    `attempts`: int - number of masking attempts
     `seed`: int or numpy.random.Generator - random seed for reproducibility
     
     # Returns:
@@ -120,35 +112,34 @@ def mask(dataset: List, mask_ratio: float = 0.5, attempts: int = 15, seed = 45) 
     else:
         rng = seed
     
-    for smiles in dataset:
-        sliced_smiles = tokenize(smiles)
-        masked_smiles = set()
+    sliced_smiles = tokenize(smiles)
+    masked_smiles = set()
+    
+    remaining_attempts = attempts
+    while len(masked_smiles) < attempts and remaining_attempts > 0:
+        masked = sliced_smiles.copy()
         
-        remaining_attempts = attempts
-        while len(masked_smiles) < attempts and remaining_attempts > 0:
-            masked = sliced_smiles.copy()
-            
-            mask_indices = rng.choice(len(masked), int(len(masked) * mask_ratio), replace=False)
-            
-            for idx in mask_indices:
-                masked[idx] = token
-            
-            masked_string = ''.join(masked)
-            if masked_string not in masked_smiles:
-                masked_smiles.add(masked_string)
-            
-            remaining_attempts -= 1
+        mask_indices = rng.choice(len(masked), int(len(masked) * mask_ratio), replace=False)
         
-        all_masked_smiles.extend(list(masked_smiles))
+        for idx in mask_indices:
+            masked[idx] = token
+        
+        masked_string = ''.join(masked)
+        if masked_string not in masked_smiles:
+            masked_smiles.add(masked_string)
+        
+        remaining_attempts -= 1
+    
+    all_masked_smiles.extend(list(masked_smiles))
     
     return all_masked_smiles
 
-def delete(dataset: List, delete_ratio: float = 0.3, attempts: int = 5, seed = 45) -> List[str]:
+def delete(smiles: str, delete_ratio: float = 0.3, attempts: int = 5, seed = 45) -> List[str]:
     """
     Delete tokens from SMILES strings.
     
     # Parameters:
-    `dataset`: List - List of SMILES strings
+    `smiles`: str - SMILES string to augment
     `delete_ratio`: float - ratio of tokens to delete
     `attempts`: int - number of deletion attempts per SMILES
     `seed`: int or numpy.random.Generator - random seed for reproducibility
@@ -163,36 +154,37 @@ def delete(dataset: List, delete_ratio: float = 0.3, attempts: int = 5, seed = 4
     else:
         rng = seed
     
-    for smiles in dataset:
-        sliced_smiles = tokenize(smiles)
-        deleted_smiles = set()
+    sliced_smiles = tokenize(smiles)
+    deleted_smiles = set()
+    
+    remaining_attempts = attempts
+    while len(deleted_smiles) < attempts and remaining_attempts > 0:
+        deleted = sliced_smiles.copy()
         
-        remaining_attempts = attempts
-        while len(deleted_smiles) < attempts and remaining_attempts > 0:
-            deleted = sliced_smiles.copy()
-            
-            delete_indices = rng.choice(len(deleted), int(len(deleted) * delete_ratio), replace=False)
-            
-            for idx in delete_indices:
-                deleted[idx] = ''
-            
-            deleted_string = ''.join(deleted)
-            if deleted_string not in deleted_smiles:
-                deleted_smiles.add(deleted_string)
-            
-            remaining_attempts -= 1
+        delete_indices = rng.choice(len(deleted), int(len(deleted) * delete_ratio), replace=False)
         
-        all_deleted_smiles.extend(list(deleted_smiles))
+        for idx in delete_indices:
+            deleted[idx] = ''
+        
+        deleted_string = ''.join(deleted)
+        if deleted_string not in deleted_smiles:
+            deleted_smiles.add(deleted_string)
+        
+        remaining_attempts -= 1
+    
+    all_deleted_smiles.extend(list(deleted_smiles))
     
     return all_deleted_smiles
 
-def swap(dataset: List, attempts: int = 5, seed = 45) -> List[str]:
+def swap(smiles: str, attempts: int = 5, seed = 45) -> List[str]:
     """
     Swap two random tokens in SMILES strings.
     
     # Parameters:
-    `dataset`: List - List of SMILES strings
+    `smiles`: str - SMILES string to augment
+
     `attempts`: int - number of swapping attempts per SMILES
+
     `seed`: int or numpy.random.Generator - random seed for reproducibility
     
     # Returns:
@@ -205,42 +197,39 @@ def swap(dataset: List, attempts: int = 5, seed = 45) -> List[str]:
     else:
         rng = seed
     
-    for smiles in dataset:
-        tokens, non_charset_indices = atom_positions(smiles)
-        swapped_smiles = set()
+    tokens, non_charset_indices = atom_positions(smiles)
+    swapped_smiles = set()
+    
+    if len(non_charset_indices) < 2:
+        all_swapped_smiles.append(smiles)
+    
+    remaining_attempts = attempts
+    while len(swapped_smiles) < attempts and remaining_attempts > 0:
+        swapped = tokens.copy()
         
-        if len(non_charset_indices) < 2:
-            all_swapped_smiles.append(smiles)
-            continue
+        idx1, idx2 = rng.choice(non_charset_indices, 2, replace=False)
         
-        remaining_attempts = attempts
-        while len(swapped_smiles) < attempts and remaining_attempts > 0:
-            swapped = tokens.copy()
-            
-            idx1, idx2 = rng.choice(non_charset_indices, 2, replace=False)
-            
-            swapped[idx1], swapped[idx2] = swapped[idx2], swapped[idx1]
-            
-            swapped_string = ''.join(swapped)
-            if swapped_string not in swapped_smiles:
-                swapped_smiles.add(swapped_string)
-            
-            remaining_attempts -= 1
+        swapped[idx1], swapped[idx2] = swapped[idx2], swapped[idx1]
         
-        all_swapped_smiles.extend(list(swapped_smiles))
+        swapped_string = ''.join(swapped)
+        if swapped_string not in swapped_smiles:
+            swapped_smiles.add(swapped_string)
+        
+        remaining_attempts -= 1
+    
+    all_swapped_smiles.extend(list(swapped_smiles))
     
     return all_swapped_smiles
 
-def fusion(dataset: List, mask_ratio: float = 0.05, delete_ratio: float = 0.3, attempts: int = 5, seed = 45) -> List[str]:
+def fusion(smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3, attempts: int = 5, seed = 45) -> List[str]:
     """
-    Fusion of mask, delete and swap functions. For each SMILES string,
-    randomly choose one of the three augmentation methods.
+    Fusion of mask, delete and swap functions. Randomly choose one of the three augmentation methods.
     
     # Parameters:
-    `dataset`: List - List of SMILES strings
+    `smiles`: str - SMILES string to augment
     `mask_ratio`: float - ratio of tokens to mask
     `delete_ratio`: float - ratio of tokens to delete
-    `attempts`: int - number of augmentation attempts per SMILES
+    `attempts`: int - number of augmentation attempts
     `seed`: int or numpy.random.RandomState - random seed for reproducibility
     
     # Returns:
@@ -253,27 +242,24 @@ def fusion(dataset: List, mask_ratio: float = 0.05, delete_ratio: float = 0.3, a
     else:
         rng = np.random.RandomState(seed)
     
-    if not dataset:
-        raise ValueError("Empty dataset isn't a valid dataset.")
+    if not smiles:
+        raise ValueError("Empty SMILES string isn't valid.")
     
-    for i, smiles in enumerate(dataset):
-        # print(f"Processing SMILES {i+1}/{len(dataset)}: {smiles}")
+    chosen = rng.choice(3, 1)[0]
+    
+    try:
+        if chosen == 0:
+            augmented = mask(smiles, mask_ratio=mask_ratio, attempts=attempts, seed=rng)
+        elif chosen == 1:
+            augmented = delete(smiles, delete_ratio=delete_ratio, attempts=attempts, seed=rng)
+        else:
+            augmented = swap(smiles, attempts=attempts, seed=rng)
         
-        chosen = rng.choice(3, 1)[0]
-        
-        try:
-            if chosen == 0:
-                augmented = mask([smiles], mask_ratio=mask_ratio, attempts=attempts, seed=rng)
-            elif chosen == 1:
-                augmented = delete([smiles], delete_ratio=delete_ratio, attempts=attempts, seed=rng)
-            else:
-                augmented = swap([smiles], attempts=attempts, seed=rng)
-            
-            augmented_smiles.extend(augmented)
-        
-        except Exception as e:
-            print(f"Error during augmentation of {smiles}: {str(e)}")
-            raise ValueError(e)
+        augmented_smiles.extend(augmented)
+    
+    except Exception as e:
+        print(f"Error during augmentation of {smiles}: {str(e)}")
+        raise ValueError(e) 
     
     return augmented_smiles
 
@@ -299,15 +285,15 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
 
         smiles = row['single_smiles']
 
-        try:
+        try:           
             if "mask" in augmentation_methods:
-                augmented_smiles = mask([smiles], mask_ratio=mask_ratio, attempts=attempts, seed=rng)
+                augmented_smiles = mask(smiles, mask_ratio=mask_ratio, attempts=attempts, seed=rng)
             elif "delete" in augmentation_methods:
-                augmented_smiles = delete([smiles], delete_ratio=delete_ratio, attempts=attempts, seed=rng)
+                augmented_smiles = delete(smiles, delete_ratio=delete_ratio, attempts=attempts, seed=rng)
             elif "swap" in augmentation_methods:
-                augmented_smiles = swap([smiles], attempts=attempts, seed=rng)
+                augmented_smiles = swap(smiles, attempts=attempts, seed=rng)
             elif "fusion" in augmentation_methods:
-                augmented_smiles = fusion([smiles], mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
+                augmented_smiles = fusion(smiles, mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
                                         attempts=attempts, seed=rng)
             elif "enumeration" in augmentation_methods:
                 augmented_smiles = enumerateSmiles(smiles, num_randomizations=attempts)
