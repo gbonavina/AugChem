@@ -1,6 +1,6 @@
 import os
-from rdkit import Chem
 from rdkit import RDLogger
+from rdkit import Chem
 import numpy as np
 import pandas as pd
 from typing import List, Tuple, Optional, Required
@@ -8,7 +8,7 @@ from pathlib import Path
 from modules.smiles.smiles_modules import *
 
 # disable rdkit warnings
-RDLogger.logger().setLevel(RDLogger.ERROR)
+RDLogger.DisableLog('rdApp.*')
 
 class Loader:
     def __init__(self, path):
@@ -132,6 +132,9 @@ class Augmentator:
             new_df = augment_dataset(dataset=df, augmentation_methods=augmentation_methods, mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
                                        attempts=num_enumeration_attempts, smiles_collumn=smiles_col, augment_percentage=augment_percentage, seed=seed)
             
+            # nos testes com 20% de aumento, houveram ~22 smiles duplicadas, entao é necessário removê-las
+            new_df = new_df.drop_duplicates()
+
 
             new_df.to_csv("Augmented_QM9.csv", index=False, float_format='%.8e')
 

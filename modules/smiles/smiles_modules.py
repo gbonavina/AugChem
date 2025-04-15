@@ -1,9 +1,15 @@
 from typing import Tuple, List, Optional
 from rdkit import Chem
+from rdkit import RDLogger
 import numpy as np
 import re
 import pandas as pd
 import ast
+
+# disable rdkit warnings
+RDLogger.DisableLog('rdApp.*')
+# RDLogger.logger().setLevel(RDLogger.ERROR)
+
 
 def atom_positions(smiles: str) -> Tuple[List[str], List[int]]:
     """
@@ -288,14 +294,14 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
         try:           
             if "mask" in augmentation_methods:
                 augmented_smiles = mask(smiles, mask_ratio=mask_ratio, attempts=attempts, seed=rng)
-            elif "delete" in augmentation_methods:
+            if "delete" in augmentation_methods:
                 augmented_smiles = delete(smiles, delete_ratio=delete_ratio, attempts=attempts, seed=rng)
-            elif "swap" in augmentation_methods:
+            if "swap" in augmentation_methods:
                 augmented_smiles = swap(smiles, attempts=attempts, seed=rng)
-            elif "fusion" in augmentation_methods:
+            if "fusion" in augmentation_methods:
                 augmented_smiles = fusion(smiles, mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
                                         attempts=attempts, seed=rng)
-            elif "enumeration" in augmentation_methods:
+            if "enumeration" in augmentation_methods:
                 augmented_smiles = enumerateSmiles(smiles, num_randomizations=attempts)
             else:
                 raise ValueError(f"Unknown augmentation methods: {augmentation_methods}")
@@ -323,7 +329,7 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
                     break
 
         except Exception as e:
-            print(f"Error augmenting SMILES {smiles}: {str(e)}")
+            # print(f"Error augmenting SMILES {smiles}: {str(e)}")
             continue
 
     if new_rows:
@@ -337,23 +343,3 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
         augmented_df = pd.concat([augmented_df, new_data], ignore_index=True)
         
     return augmented_df
-
-    
-def random_select(dataset: pd.DataFrame, seed: int = 45) -> List[str]:
-    """
-    Shuffle dataset to augment a certain percentage of the data
-
-    # Parameters:
-    `dataset`: List - list of SMILES strings
-    `seed`: int - random seed for reproducibility
-
-    # Returns:
-    `List[str]: Subset of data to augment`
-    """
-    
-    if dataset.empty():
-        raise ValueError("Dataset is empty. Load the dataset before trying to augment.")
-    
-    data_to_augment = dataset.sample(n=1, random_state=seed, replace=False)
-
-    return data_to_augment
