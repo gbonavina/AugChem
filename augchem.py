@@ -11,12 +11,12 @@ from modules.smiles.smiles_modules import *
 RDLogger.DisableLog('rdApp.*')
 
 class Loader:
-    def __init__(self, path):
+    def __init__(self, path: Path):
         self.path = path
 
-    def load_qm9_xyz(self):
+    def load_qm9_xyz(self, file_path):
         """Load a single QM9.xyz file."""
-        with open(self.path, 'r') as f:
+        with open(file_path, 'r') as f:
             # Number of atoms
             natoms = int(f.readline())
             # Properties are in the second line
@@ -24,7 +24,10 @@ class Loader:
             # Read atomic coordinates and types
             atoms = []
             coordinates = []
-            smiles = []
+            smiles1 = ''
+            smiles2 = '' 
+            inchi1 = ''
+            inchi2 = ''
             # print(properties)
             for num_line, line in enumerate(f):
                 # print(num_line, line)
@@ -33,64 +36,69 @@ class Loader:
                     atoms.append(info[0])
                     coordinates.append(list(map(float, info[1:-1])))
                 if num_line == natoms + 1:
-                    smiles.append(line.split())
+                    smiles1, smiles2 = line.split()
+                if num_line == natoms + 2:
+                    inchi1, inchi2 = line.split()
+            
         return {
             "natoms": natoms,
             "atoms": atoms,
             "coordinates": np.array(coordinates),
-            "smiles": smiles,
+            "smiles_1": smiles1,
+            "smiles_2": smiles2,
+            "inchi_1": inchi1,
+            "inchi_2": inchi2,
             "properties": properties
         }
 
-    def load_qm9_dataset(self, list_mols=[]):
+    def load_qm9_dataset(self, directory_path, list_mols=[]):
         """Load the entire QM9 dataset from a directory containing .xyz files."""
         X = []
         Y = []
         S = []
-        SMILES = []
-        for file_name in os.listdir(self.path):
+        SMILES1 = []
+        SMILES2 = []
+        INCHI1 = []
+        INCHI2 = []
+
+        for file_name in os.listdir(directory_path):
             if file_name.endswith(".xyz"):
-                file_path = os.path.join(self.path, file_name)
+                file_path = os.path.join(directory_path, file_name)
                 molecule_data = self.load_qm9_xyz(file_path)
                 if molecule_data['natoms'] in list_mols or len(list_mols)==0:
                     X.append([molecule_data['atoms'], molecule_data['coordinates']])
                     Y.append(molecule_data['properties'])
                     S.append(molecule_data['natoms'])
-                    SMILES.append(molecule_data['smiles'])
+                    SMILES1.append(molecule_data['smiles_1'])
+                    SMILES2.append(molecule_data['smiles_2'])
+                    INCHI1.append(molecule_data['inchi_1'])
+                    INCHI2.append(molecule_data['inchi_2'])
 
-        return Y, SMILES
+        return X, Y, S, SMILES1, SMILES2, INCHI1, INCHI2
     
-    def qm9_to_csv(self):
-        Y, SMILES = self.load_qm9_dataset()
+    def qm9_to_csv(self, qm9_folder: Path, property: int):
+        XYZ, Y, natoms, SMILES_1, SMILES_2, INCHI_1, INCHI_2 = self.load_qm9_dataset(qm9_folder)
 
-        Y = Y.tolist()
+        z = Y.tolist()
 
-        # Lista para armazenar todos os pares SMILES/propriedade
-        todos_smiles = []
-        todas_propriedades = []
+        all_properties = []
 
-        # Para cada molécula
-        for i, propriedades in enumerate(Y):
-            # Obter a propriedade 0 desta molécula
-            propriedade_0 = propriedades[0]
-            
-            # Obter os SMILES desta molécula
-            smiles_lista = SMILES[i]
-            
-            # Adicionar cada SMILES com a propriedade 0 correspondente
-            for smiles in smiles_lista:
-                todos_smiles.append(smiles)
-                todas_propriedades.append(propriedade_0)
+        for i, propriedades in enumerate(z):
+            propriedade = propriedades[property]
 
-        # Criar dataframe com todos os pares
+            all_properties.append(propriedade)
+
         dataframe = pd.DataFrame(
             {
-                'SMILES': todos_smiles,
-                'Property_0': todas_propriedades
+                'SMILES_1': SMILES_1,
+                'SMILES_2': SMILES_2,
+                'INCHI_1': INCHI_1,
+                'INCHI_2': INCHI_2,
+                'Property_0': all_properties
             }
         )
 
-        dataframe.to_csv('QM9.csv', index=False, float_format='%.8e')
+        dataframe.to_csv('QM9.csv', index=True, float_format='%.8e')
 
 class Augmentator:
     def __init__(self, seed: int = 4123):
@@ -140,6 +148,7 @@ class Augmentator:
 
             new_data = len(new_df) - len(df)
             print(f"Generated new {new_data} SMILES")
+
             return new_df
             
     class GraphsModule:

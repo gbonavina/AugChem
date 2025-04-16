@@ -8,7 +8,6 @@ import ast
 
 # disable rdkit warnings
 RDLogger.DisableLog('rdApp.*')
-# RDLogger.logger().setLevel(RDLogger.ERROR)
 
 
 def atom_positions(smiles: str) -> Tuple[List[str], List[int]]:
@@ -274,9 +273,9 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
 
     rng = np.random.RandomState(seed)
 
-    augmented_df = dataset.copy()
-    dataset['single_smiles'] = dataset['SMILES'].apply(lambda x: ast.literal_eval(x) if x.startswith('[') else [x])
-    df_expanded = dataset.explode('single_smiles')
+    working_copy = dataset.copy()
+    working_copy['single_smiles'] = working_copy['SMILES'].apply(lambda x: ast.literal_eval(x) if x.startswith('[') else [x])
+    df_expanded = working_copy.explode('single_smiles')
 
 
     target_new_rows = int(len(dataset) * augment_percentage)
@@ -308,23 +307,18 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
     
             if augmented_smiles:
                 for aug_smiles in augmented_smiles:
-                    # Cria uma nova linha baseada na original
                     new_row = row.copy()
-                    # Substitui o SMILES pelo aumentado
                     new_row[smiles_collumn] = aug_smiles
                     
-                    # Substitui valores de propriedades por "-"
                     property_columns = [col for col in new_row.index if col.startswith('Property_')]
                     for prop_col in property_columns:
                         new_row[prop_col] = "-"
-                    
-                    # Adiciona a nova coluna com o índice da molécula original
+                
                     new_row['parent_idx'] = original_idx
                     
                     new_rows.append(new_row)
                     augmented_count += 1
                 
-                # Para se já atingiu o número desejado
                 if augmented_count >= target_new_rows:
                     break
 
@@ -332,14 +326,14 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
             # print(f"Error augmenting SMILES {smiles}: {str(e)}")
             continue
 
+    augmented_df = dataset.copy()
+
     if new_rows:
         new_data = pd.DataFrame(new_rows)
-        
-        # Remove a coluna temporária
+    
         if 'single_smiles' in new_data.columns:
             new_data = new_data.drop(columns=['single_smiles'])
         
-        # Concatena com o dataset original
         augmented_df = pd.concat([augmented_df, new_data], ignore_index=True)
         
     return augmented_df
