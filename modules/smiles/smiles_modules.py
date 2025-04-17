@@ -2,9 +2,9 @@ from typing import Tuple, List, Optional
 from rdkit import Chem
 from rdkit import RDLogger
 import numpy as np
-import re
 import pandas as pd
 import ast
+import re
 
 # disable rdkit warnings
 RDLogger.DisableLog('rdApp.*')
@@ -42,7 +42,6 @@ def tokenize(smiles: str):
 
     tokens = [token for token in regex.findall(smiles)]
     return tokens
-
 
 def generateRandomSmiles(smiles: str, attempts: int = 100) -> Optional[str]:
     """
@@ -268,15 +267,25 @@ def fusion(smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3, att
     
     return augmented_smiles
 
-def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask_ratio: float = 0.1, delete_ratio: float = 0.3, attempts: int = 10,
-                    smiles_collumn: str = "SMILES", augment_percentage: float = 0.2, seed: int = 42):
+
+# seleciona a coluna ai retorna a coluna com os dados aumentados e a propriedade como eu havia feito antes.
+def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_methods: List[str], mask_ratio: float = 0.1, property_col: str = None, delete_ratio: float = 0.3, attempts: int = 10,
+                     augment_percentage: float = 0.2, seed: int = 42, max_unique: int = 100):
+
+    # if col_to_augment.startswith("INCHI_") or dataset[col_to_augment][0].startswith("InChI="):
+    #     raise ValueError("Input appears to be in InChI format. This function only works with SMILES format.")
+
+    try:
+        mol = Chem.MolFromSmiles(dataset[col_to_augment][0])
+    except Exception as e:
+        raise ValueError("Input appears to be in the wrong format. This function only works with SMILES format.")
 
     rng = np.random.RandomState(seed)
 
-    working_copy = dataset.copy()
-    working_copy['single_smiles'] = working_copy['SMILES'].apply(lambda x: ast.literal_eval(x) if x.startswith('[') else [x])
-    df_expanded = working_copy.explode('single_smiles')
-
+    if property_col:
+        working_copy = dataset[[col_to_augment, property_col]].copy()
+    else:
+        working_copy = dataset[[col_to_augment]].copy()
 
     target_new_rows = int(len(dataset) * augment_percentage)
 
@@ -284,13 +293,13 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
     augmented_count = 0
 
     while augmented_count < target_new_rows:
-        row_idx = rng.choice(len(df_expanded))
-        original_idx = df_expanded.index[row_idx]
-        row = df_expanded.iloc[row_idx].copy()
+        row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
+        original_idx = working_copy.index[row_to_augment]
+        row = working_copy.iloc[row_to_augment].copy()
+        
+        smiles = row[col_to_augment]
 
-        smiles = row['single_smiles']
-
-        try:           
+        try: 
             if "mask" in augmentation_methods:
                 augmented_smiles = mask(smiles, mask_ratio=mask_ratio, attempts=attempts, seed=rng)
             if "delete" in augmentation_methods:
@@ -304,11 +313,11 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
                 augmented_smiles = enumerateSmiles(smiles, num_randomizations=attempts)
             else:
                 raise ValueError(f"Unknown augmentation methods: {augmentation_methods}")
-    
+            
             if augmented_smiles:
                 for aug_smiles in augmented_smiles:
                     new_row = row.copy()
-                    new_row[smiles_collumn] = aug_smiles
+                    new_row[col_to_augment] = aug_smiles
                     
                     property_columns = [col for col in new_row.index if col.startswith('Property_')]
                     for prop_col in property_columns:
@@ -318,22 +327,19 @@ def augment_dataset(dataset: pd.DataFrame, augmentation_methods: List[str], mask
                     
                     new_rows.append(new_row)
                     augmented_count += 1
-                
+            
                 if augmented_count >= target_new_rows:
                     break
 
         except Exception as e:
             # print(f"Error augmenting SMILES {smiles}: {str(e)}")
             continue
-
-    augmented_df = dataset.copy()
+         
+    filtered_df = dataset[[col_to_augment, property_col]].copy()
 
     if new_rows:
         new_data = pd.DataFrame(new_rows)
-    
-        if 'single_smiles' in new_data.columns:
-            new_data = new_data.drop(columns=['single_smiles'])
-        
-        augmented_df = pd.concat([augmented_df, new_data], ignore_index=True)
+        augmented_df = pd.concat([filtered_df, new_data], ignore_index=True)
         
     return augmented_df
+    

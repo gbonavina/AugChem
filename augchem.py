@@ -116,7 +116,8 @@ class Augmentator:
 
         # Receber csv, colocar coluna extra de qual id veio o aumento, adicionar tag de qual metodo vai ser utilizado e aumento de %: inicial 1000 dados -> 1200 dados, essa é a %
         def augment_data(self, dataset: Path, mask_ratio: float = 0.1, delete_ratio: float = 0.3, num_enumeration_attempts: int = 10, seed: int = 42, 
-                            max_unique: int = 100, augment_percentage: float = 0.2, augmentation_methods: List[str] = ["fusion", "enumerate"], smiles_col: str = 'SMILES') -> pd.DataFrame:
+                            max_unique: int = 100, augment_percentage: float = 0.2, augmentation_methods: List[str] = ["fusion", "enumerate"], col_to_augment: str = 'SMILES',
+                            property_col: str = None) -> pd.DataFrame:
             """
             Augment SMILES strings using fusion and enumeration methods.
             
@@ -138,7 +139,8 @@ class Augmentator:
             """
             df = pd.read_csv(dataset)
             new_df = augment_dataset(dataset=df, augmentation_methods=augmentation_methods, mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
-                                       attempts=num_enumeration_attempts, smiles_collumn=smiles_col, augment_percentage=augment_percentage, seed=seed)
+                                       attempts=num_enumeration_attempts, col_to_augment=col_to_augment, augment_percentage=augment_percentage, seed=seed, max_unique=max_unique,
+                                       property_col=property_col)
             
             # nos testes com 20% de aumento, houveram ~22 smiles duplicadas, entao é necessário removê-las
             new_df = new_df.drop_duplicates()
