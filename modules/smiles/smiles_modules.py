@@ -298,41 +298,64 @@ def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_met
         row = working_copy.iloc[row_to_augment].copy()
         
         smiles = row[col_to_augment]
+        try:
+            augmented_smiles: List[str] = []
+            for method in augmentation_methods:
+                if method == "mask":
+                    augmented_smiles.extend(mask(
+                        smiles,
+                        mask_ratio=mask_ratio,
+                        attempts=attempts,
+                        seed=rng
+                    ))
+                elif method == "delete":
+                    augmented_smiles.extend(delete(
+                        smiles,
+                        delete_ratio=delete_ratio,
+                        attempts=attempts,
+                        seed=rng
+                    ))
+                elif method == "swap":
+                    augmented_smiles.extend(swap(
+                        smiles,
+                        attempts=attempts,
+                        seed=rng
+                    ))
+                elif method == "fusion":
+                    augmented_smiles.extend(fusion(
+                        smiles,
+                        mask_ratio=mask_ratio,
+                        delete_ratio=delete_ratio,
+                        attempts=attempts,
+                        seed=rng
+                    ))
+                elif method == "enumeration":
+                    augmented_smiles.extend(enumerateSmiles(
+                        smiles,
+                        num_randomizations=attempts
+                    ))
+                else:
+                    raise ValueError(f"Unknown augmentation method: {method}")
 
-        try: 
-            if "mask" in augmentation_methods:
-                augmented_smiles = mask(smiles, mask_ratio=mask_ratio, attempts=attempts, seed=rng)
-            if "delete" in augmentation_methods:
-                augmented_smiles = delete(smiles, delete_ratio=delete_ratio, attempts=attempts, seed=rng)
-            if "swap" in augmentation_methods:
-                augmented_smiles = swap(smiles, attempts=attempts, seed=rng)
-            if "fusion" in augmentation_methods:
-                augmented_smiles = fusion(smiles, mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
-                                        attempts=attempts, seed=rng)
-            if "enumeration" in augmentation_methods:
-                augmented_smiles = enumerateSmiles(smiles, num_randomizations=attempts)
-            else:
-                raise ValueError(f"Unknown augmentation methods: {augmentation_methods}")
-            
-            if augmented_smiles:
-                for aug_smiles in augmented_smiles:
-                    new_row = row.copy()
-                    new_row[col_to_augment] = aug_smiles
-                    
-                    property_columns = [col for col in new_row.index if col.startswith('Property_')]
-                    for prop_col in property_columns:
-                        new_row[prop_col] = "-"
-                
-                    new_row['parent_idx'] = original_idx
-                    
-                    new_rows.append(new_row)
-                    augmented_count += 1
-            
+            augmented_smiles = list(dict.fromkeys(augmented_smiles))
+            augmented_smiles = augmented_smiles[: target_new_rows - augmented_count]
+
+            for aug_smiles in augmented_smiles:
+                new_row = row.copy()
+                new_row[col_to_augment] = aug_smiles
+
+                for prop_col in [c for c in new_row.index if c.startswith("Property_")]:
+                    new_row[prop_col] = "-"
+                new_row["parent_idx"] = original_idx
+                new_rows.append(new_row)
+                augmented_count += 1
                 if augmented_count >= target_new_rows:
                     break
 
-        except Exception as e:
-            # print(f"Error augmenting SMILES {smiles}: {str(e)}")
+            if augmented_count >= target_new_rows:
+                break
+
+        except Exception:
             continue
          
     filtered_df = dataset[[col_to_augment, property_col]].copy()

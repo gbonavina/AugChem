@@ -115,7 +115,7 @@ class Augmentator:
             self.parent = parent
 
         # Receber csv, colocar coluna extra de qual id veio o aumento, adicionar tag de qual metodo vai ser utilizado e aumento de %: inicial 1000 dados -> 1200 dados, essa é a %
-        def augment_data(self, dataset: Path, mask_ratio: float = 0.1, delete_ratio: float = 0.3, num_enumeration_attempts: int = 10, seed: int = 42, 
+        def augment_data(self, dataset: Path, mask_ratio: float = 0.1, delete_ratio: float = 0.3, attempts: int = 10, seed: int = 42, 
                             max_unique: int = 100, augment_percentage: float = 0.2, augmentation_methods: List[str] = ["fusion", "enumerate"], col_to_augment: str = 'SMILES',
                             property_col: str = None) -> pd.DataFrame:
             """
@@ -128,7 +128,7 @@ class Augmentator:
 
             `delete_ratio`: float - Ratio of tokens to delete in fusion method
 
-            `num_enumeration_attempts`: int - Number of attempts for SMILES enumeration
+            `attempts`: int - Number of attempts for SMILES enumeration
 
             `max_unique`: int - Maximum number of unique SMILES to generate in enumeration
 
@@ -139,14 +139,12 @@ class Augmentator:
             """
             df = pd.read_csv(dataset)
             new_df = augment_dataset(dataset=df, augmentation_methods=augmentation_methods, mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
-                                       attempts=num_enumeration_attempts, col_to_augment=col_to_augment, augment_percentage=augment_percentage, seed=seed, max_unique=max_unique,
+                                       attempts=attempts, col_to_augment=col_to_augment, augment_percentage=augment_percentage, seed=seed, max_unique=max_unique,
                                        property_col=property_col)
             
-            # nos testes com 20% de aumento, houveram ~22 smiles duplicadas, entao é necessário removê-las
+
             new_df = new_df.drop_duplicates()
-
-
-            new_df.to_csv("Augmented_QM9.csv", index=False, float_format='%.8e')
+            new_df.to_csv("Augmented_QM9.csv", index=True, float_format='%.8e')
 
             new_data = len(new_df) - len(df)
             print(f"Generated new {new_data} SMILES")
