@@ -99,9 +99,57 @@ class Loader:
 
         dataframe.to_csv('QM9.csv', index=True, float_format='%.8e')
 
-# estruturar esse projeto pra conseguir fazer o pip local
-class Augmentator:
-    def __init__(self, seed: int = 4123):
+class Augmentator:        
+    """
+    Main class for molecular data augmentation across multiple representation formats.
+    
+    This class provides a unified interface for augmenting molecular data in different 
+    formats through specialized modules. It maintains consistent random state management
+    across all modules for reproducible augmentation results.
+    
+    The class contains three specialized modules:
+    - SMILESModule: For augmenting SMILES string representations of molecules
+    - GraphsModule: For augmenting molecular graph representations
+    - INCHIModule: For augmenting InChI string representations of molecules
+    
+    Parameters
+    ----------
+    `seed` : int, default=4123
+        Random seed for initializing the random number generators used across
+        all augmentation modules
+        
+    Attributes
+    ----------
+    `seed` : int
+        The random seed used for initialization
+    `ss` : numpy.random.SeedSequence
+        Seed sequence for generating independent random streams
+    `rng` : numpy.random.RandomState
+        Random number generator for reproducible random operations
+    `SMILES` : SMILESModule
+        Module containing methods for SMILES-based augmentation
+    `Graphs` : GraphsModule
+        Module containing methods for molecular graph-based augmentation
+    `INCHI` : INCHIModule
+        Module containing methods for InChI-based augmentation
+    
+    Examples
+    --------
+    >>> augmentator = Augmentator(seed=42)
+    >>> augmented_data = augmentator.SMILES.augment_data(dataset='molecules.csv')
+    """
+    def __init__(self, seed: int = 42):
+        """
+        Initialize an Augmentator instance with the specified random seed.
+        
+        Sets up random number generation infrastructure and initializes the
+        specialized augmentation modules.
+        
+        Parameters
+        ----------
+        `seed` : int, default=4123
+            Random seed for initializing random number generators
+        """
         self.seed = seed
         self.ss = np.random.SeedSequence(self.seed)
         self.rng = np.random.RandomState(seed=seed)
@@ -111,6 +159,12 @@ class Augmentator:
         self.INCHI = self.INCHIModule(self)
 
     class SMILESModule:
+        """
+        Module for augmenting molecular data in SMILES format.
+        
+        Provides methods for generating augmented SMILES representations using various
+        techniques including masking, deletion, swapping, fusion, and enumeration.
+        """
         def __init__(self, parent):
             self.parent = parent
 
@@ -119,23 +173,48 @@ class Augmentator:
                             augment_percentage: float = 0.2, augmentation_methods: List[str] = ["fusion", "enumerate"], col_to_augment: str = 'SMILES',
                             property_col: str = None) -> pd.DataFrame:
             """
-            Augment SMILES strings using fusion and enumeration methods.
+            Augment molecular SMILES data from a CSV file.
             
-            # Parameters:
-            `dataset`: Path - List of SMILES strings to augment
-
-            `mask_ratio`: float - Ratio of tokens to mask in fusion method
-
-            `delete_ratio`: float - Ratio of tokens to delete in fusion method
-
-            `attempts`: int - Number of attempts for SMILES enumeration
-
-            `max_unique`: int - Maximum number of unique SMILES to generate in enumeration
-
-            `augment_percentage`: float - Percentage of dataset to augment with fusion method
+            Reads SMILES strings from a CSV file, applies specified augmentation methods,
+            and returns the augmented dataset. Also saves the augmented dataset to a new CSV file.
             
-            # Returns:
-            `List[str]`: Original dataset plus augmented SMILES
+            Parameters
+            ----------
+            `dataset` : Path
+                Path to the CSV file containing SMILES data to augment
+
+            `mask_ratio` : float, default=0.1
+                Fraction of tokens to mask when using masking-based augmentation methods
+
+            `delete_ratio` : float, default=0.3
+                Fraction of tokens to delete when using deletion-based augmentation methods
+
+            `seed` : int, default=42
+                Random seed for reproducible augmentation
+
+            `augment_percentage` : float, default=0.2
+                Target size of augmented dataset as a fraction of original dataset size
+
+            `augmentation_methods` : List[str], default=["fusion", "enumerate"]
+                List of augmentation methods to apply. Valid options include: 
+                "mask", "delete", "swap", "fusion", "enumeration"
+
+            `col_to_augment` : str, default='SMILES'
+                Column name in the CSV file containing SMILES strings to augment
+
+            `property_col` : str, optional
+                Column name containing property values to preserve in augmented data
+                
+            Returns
+            -------
+            `pd.DataFrame`
+                DataFrame containing both original and augmented molecules, with a 'parent_idx'
+                column linking augmented molecules to their source molecules
+                
+            Notes
+            -----
+            The augmented dataset is automatically saved to "Augmented_QM9.csv" in the
+            current working directory.
             """
             df = pd.read_csv(dataset)
             new_df = augment_dataset(dataset=df, augmentation_methods=augmentation_methods, mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
@@ -144,7 +223,7 @@ class Augmentator:
             
 
             new_df = new_df.drop_duplicates()
-            new_df.to_csv("Augmented_QM9.csv", index=True, float_format='%.8e')
+            new_df.to_csv(f"Augmented_{dataset}", index=True, float_format='%.8e')
 
             new_data = len(new_df) - len(df)
             print(f"Generated new {new_data} SMILES")
@@ -164,12 +243,3 @@ class Augmentator:
         
         def augment_data(self, dataset: List[str]):
             pass
-
-
-if __name__ == '__main__':
-    aug = Augmentator(seed=2389)
-
-    augmented_data = aug.SMILES.augment_data(dataset='QM9.csv')
-    augmented_data.head()
-    
-    print(augmented_data)

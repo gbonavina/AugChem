@@ -11,11 +11,27 @@ RDLogger.DisableLog('rdApp.*')
 
 def atom_positions(smiles: str) -> Tuple[List[str], List[int]]:
     """
-    Slice SMILES string into a list of tokens and a list of indices for tokens that do not belong 
-    to the special charset.
+    Extracts individual characters from a SMILES string and identifies indices of atoms.
     
-    # Parameters:
-    `smiles`: str - SMILES
+    This function tokenizes a SMILES string into individual characters and identifies
+    positions of actual atoms by excluding special characters like brackets, 
+    parentheses, bonds, digits, etc.
+    
+    Parameters
+    ----------
+    `smiles` : str
+        A valid SMILES string representation of a molecule
+    
+    Returns
+    -------
+    `Tuple[List[str]`, `List[int]]`
+        A tuple containing:
+        - List of individual characters from the SMILES string
+        - List of indices where non-special characters (atoms) are located
+    
+    Examples
+    --------
+    >>> atom_positions("CC(=O)O") = (['C', 'C', '(', '=', 'O', ')', 'O'], [0, 1, 4, 6])
     """
     charset = set(['[', ']', '(', ')', '=', '#', '%', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '0', '@'])
     
@@ -30,10 +46,27 @@ def atom_positions(smiles: str) -> Tuple[List[str], List[int]]:
 
 def tokenize(smiles: str):
     """
-    Slice SMILES string into tokens from a REGEX pattern. This will be used for masking and deleting functions.
-
-    # Parameters:
-    `smiles`: str - SMILES
+    Tokenizes a SMILES string using a regular expression pattern.
+    
+    Splits a SMILES string into chemically meaningful tokens according to a
+    predefined regex pattern. This tokenization preserves atom types, bonds,
+    stereochemistry, and other structural features.
+    
+    Parameters
+    ----------
+    `smiles` : str
+        A valid SMILES string representation of a molecule
+    
+    Returns
+    -------
+    `List[str]`
+        A list of chemical tokens extracted from the SMILES string
+    
+    Examples
+    --------
+    >>> tokenize("CC(=O)O") = ['C', 'C', '(', '=', 'O', ')', 'O']
+    
+    >>> tokenize("C1=CC=CC=C1") = ['C', '1', '=', 'C', 'C', '=', 'C', 'C', '=', 'C', '1']
     """
 
     SMI_REGEX_PATTERN = r"""(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"""
@@ -44,7 +77,30 @@ def tokenize(smiles: str):
 
 def enumerateSmiles(smiles: str) -> Optional[str]:
     """
-    Generate a valid random SMILES string.
+    Generates a valid non-canonical SMILES representation of the input molecule.
+    
+    Creates an alternative, but chemically equivalent SMILES string by randomizing
+    the atom ordering while preserving the molecular structure. Returns None if 
+    the generation fails or produces an invalid SMILES.
+    
+    Parameters
+    ----------
+    `smiles` : str
+        A valid SMILES string representation of a molecule
+    
+    Returns
+    -------
+    `Optional[str]`
+        A new, valid SMILES string with randomized atom ordering, or None if generation fails
+    
+    Raises
+    ------
+    ValueError
+        If the input SMILES string is invalid
+        
+    Examples
+    --------
+    >>> enumerateSmiles("CC(=O)O") = 'OC(C)=O'
     """
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
@@ -63,16 +119,31 @@ def enumerateSmiles(smiles: str) -> Optional[str]:
 
 def mask(smiles: str, mask_ratio: float = 0.5, seed = 45) -> List[str]:
     """
-    Mask tokens in a SMILES string with [M] token.
+    Replaces random tokens in a SMILES string with a masking token '[M]'.
     
-    # Parameters:
-    `smiles`: str - SMILES string to augment
-    `mask_ratio`: float - ratio of tokens to mask
-    `attempts`: int - number of masking attempts
-    `seed`: int or numpy.random.Generator - random seed for reproducibility
+    Tokenizes the SMILES string and randomly replaces a specified fraction of tokens
+    with a mask token. Useful for creating partially obscured molecular representations
+    for machine learning applications.
     
-    # Returns:
-    `List[str]`: List of masked SMILES strings
+    Parameters
+    ----------
+    `smiles` : str
+        A valid SMILES string representation of a molecule
+
+    `mask_ratio` : float, default=0.5
+        Fraction of tokens to replace with mask tokens (0.0 to 1.0)
+
+    `seed` : int or numpy.random.RandomState, default=45
+        Random seed or random number generator for reproducibility
+    
+    Returns
+    -------
+    `str`
+        SMILES string with selected tokens replaced by '[M]'
+    
+    Examples
+    --------
+    >>> mask("CC(=O)O", mask_ratio=0.4, seed=42) = 'C[M](=O)[M]'
     """
     token = '[M]'
     
@@ -96,16 +167,31 @@ def mask(smiles: str, mask_ratio: float = 0.5, seed = 45) -> List[str]:
 
 def delete(smiles: str, delete_ratio: float = 0.3, seed = 45) -> List[str]:
     """
-    Delete tokens from SMILES strings.
+    Removes random tokens from a SMILES string.
     
-    # Parameters:
-    `smiles`: str - SMILES string to augment
-    `delete_ratio`: float - ratio of tokens to delete
-    `attempts`: int - number of deletion attempts per SMILES
-    `seed`: int or numpy.random.Generator - random seed for reproducibility
+    Tokenizes the SMILES string and randomly deletes a specified fraction of tokens.
+    This creates an incomplete representation that can be used for data augmentation
+    or model robustness testing.
     
-    # Returns:
-    `List[str]`: List of SMILES strings with tokens deleted
+    Parameters
+    ----------
+    `smiles` : str
+        A valid SMILES string representation of a molecule
+
+    `delete_ratio` : float, default=0.3
+        Fraction of tokens to delete (0.0 to 1.0)
+
+    `seed` : int or numpy.random.RandomState, default=45
+        Random seed or random number generator for reproducibility
+    
+    Returns
+    -------
+    `str`
+        SMILES string with selected tokens removed
+    
+    Examples
+    --------
+    >>> delete("CC(=O)O", delete_ratio=0.3, seed=42) = 'C(=O)O'
     """
     
     if isinstance(seed, int):
@@ -128,17 +214,27 @@ def delete(smiles: str, delete_ratio: float = 0.3, seed = 45) -> List[str]:
 
 def swap(smiles: str, seed = 45) -> List[str]:
     """
-    Swap two random tokens in SMILES strings.
+    Exchanges two random atom tokens within a SMILES string.
     
-    # Parameters:
-    `smiles`: str - SMILES string to augment
-
-    `attempts`: int - number of swapping attempts per SMILES
-
-    `seed`: int or numpy.random.Generator - random seed for reproducibility
+    Identifies non-special character positions in the SMILES string and swaps
+    two randomly selected atoms. This preserves the token count but alters
+    the molecular structure.
     
-    # Returns:
-    `List[str]`: List of SMILES strings with tokens swapped
+    Parameters
+    ----------
+    `smiles` : str
+        A valid SMILES string representation of a molecule
+    `seed` : int or numpy.random.RandomState, default=45
+        Random seed or random number generator for reproducibility
+    
+    Returns
+    -------
+    str
+        SMILES string with two atoms swapped
+    
+    Examples
+    --------
+    >>> swap("CC(=O)O", seed=42) = 'OC(=O)C'
     """
 
     if isinstance(seed, int):
@@ -158,17 +254,39 @@ def swap(smiles: str, seed = 45) -> List[str]:
 
 def fusion(smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3, seed = 45) -> List[str]:
     """
-    Fusion of mask, delete and swap functions. Randomly choose one of the three augmentation methods.
+    Applies one randomly selected augmentation method to a SMILES string.
     
-    # Parameters:
-    `smiles`: str - SMILES string to augment
-    `mask_ratio`: float - ratio of tokens to mask
-    `delete_ratio`: float - ratio of tokens to delete
-    `attempts`: int - number of augmentation attempts
-    `seed`: int or numpy.random.RandomState - random seed for reproducibility
+    Randomly chooses between masking, deletion, or swapping transformations and
+    applies it to the input SMILES. This provides a diverse set of augmentation
+    possibilities with a single function call.
     
-    # Returns:
-    `List[str]`: List of augmented SMILES strings
+    Parameters
+    ----------
+    `smiles` : str
+        A valid SMILES string representation of a molecule
+
+    `mask_ratio` : float, default=0.05
+        Fraction of tokens to mask if masking is selected (0.0 to 1.0)
+
+    `delete_ratio` : float, default=0.3
+        Fraction of tokens to delete if deletion is selected (0.0 to 1.0)
+
+    `seed` : int or numpy.random.RandomState, default=45
+        Random seed or random number generator for reproducibility
+    
+    Returns
+    -------
+    `str`
+        Augmented SMILES string
+    
+    Raises
+    ------
+    ValueError
+        If input SMILES is empty or if augmentation fails
+    
+    Examples
+    --------
+    >>> fusion("CC(=O)O", seed=42) = 'CC(O)='
     """
 
     if hasattr(seed, 'choice') and callable(seed.choice):
@@ -199,6 +317,54 @@ def fusion(smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3, see
 # fazer a seleçao na hora de aplicar o método 
 def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_methods: List[str], mask_ratio: float = 0.1, property_col: str = None, delete_ratio: float = 0.3,
                      augment_percentage: float = 0.2, seed: int = 42):
+    """
+    Applies selected augmentation methods to SMILES strings in a dataset.
+    
+    Generates augmented variants of molecular SMILES strings using specified methods
+    and adds them to the dataset. Tracks relationships between original and augmented
+    molecules using parent indices.
+    
+    Parameters
+    ----------
+    `col_to_augment` : str
+        Column name containing SMILES strings to augment
+
+    `dataset` : pd.DataFrame
+        DataFrame containing molecular data with SMILES strings
+
+    `augmentation_methods` : List[str]
+        List of methods to apply. Valid options: "mask", "delete", "swap", "fusion", "enumeration"
+    
+    `mask_ratio` : float, default=0.1
+        Fraction of tokens to mask when using mask augmentation
+    
+    `property_col` : str, optional
+        Column name containing property values to preserve in augmented data
+    
+    `delete_ratio` : float, default=0.3
+        Fraction of tokens to delete when using delete augmentation
+    
+    `augment_percentage` : float, default=0.2
+        Target size of augmented dataset as a fraction of original dataset size
+    
+    `seed` : int, default=42
+        Random seed for reproducibility
+    
+    Returns
+    -------
+    `pd.DataFrame`
+        Original dataset with augmented molecules appended, including a 'parent_idx'
+        column that references original molecule indices
+    
+    Raises
+    ------
+    ValueError
+        If input data is not in SMILES format or an unknown augmentation method is specified
+    
+    Notes
+    -----
+    Property columns with names starting with "Property_" will be set to "-" in augmented rows.
+    """
 
     try:
         mol = Chem.MolFromSmiles(dataset[col_to_augment][0])
