@@ -1,0 +1,17 @@
+MANIFEST.in
+README.md
+setup.py
+Augchem.egg-info/PKG-INFO
+Augchem.egg-info/SOURCES.txt
+Augchem.egg-info/dependency_links.txt
+Augchem.egg-info/requires.txt
+Augchem.egg-info/top_level.txt
+augchem/__init__.py
+augchem/core.py
+augchem/modules/__init__.py
+augchem/modules/graph/__init__.py
+augchem/modules/graph/graphs_modules.py
+augchem/modules/inchi/__init__.py
+augchem/modules/inchi/inchi_modules.py
+augchem/modules/smiles/__init__.py
+augchem/modules/smiles/smiles_modules.py

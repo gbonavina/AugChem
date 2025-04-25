@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from typing import List, Tuple, Optional, Required
 from pathlib import Path
-from modules.smiles.smiles_modules import *
-
+from augchem.modules.smiles.smiles_modules import *
 # disable rdkit warnings
 RDLogger.DisableLog('rdApp.*')
 

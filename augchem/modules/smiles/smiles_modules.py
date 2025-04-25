@@ -3,7 +3,6 @@ from rdkit import Chem
 from rdkit import RDLogger
 import numpy as np
 import pandas as pd
-import ast
 import re
 
 # disable rdkit warnings
