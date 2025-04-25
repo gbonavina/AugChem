@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/</loc>
+         <lastmod>2025-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/reference/augchem/</loc>
+         <lastmod>2025-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/reference/graphs_module/</loc>
+         <lastmod>2025-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/reference/inchi_module/</loc>
+         <lastmod>2025-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/reference/loader/</loc>
+         <lastmod>2025-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/reference/smiles_methods/</loc>
+         <lastmod>2025-04-25</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/reference/smiles_module/</loc>
+         <lastmod>2025-04-25</lastmod>
+    </url>
+</urlset>
