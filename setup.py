@@ -20,7 +20,7 @@ setup(
     description='Toolbox created in a partnership with FAPESP and CINE to facilitate use of Data Augmentation methods for chemical datasets.',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/gbonavina/AugChem/tree/develop',
+    url='https://gbonavina.github.io/AugChem/reference/augchem/',
     license='MIT',
     classifiers=[
         "Programming Language :: Python :: 3",

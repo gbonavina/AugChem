@@ -2,7 +2,7 @@ Metadata-Version: 2.4
 Name: Augchem
 Version: 1.0.0
 Summary: Toolbox created in a partnership with FAPESP and CINE to facilitate use of Data Augmentation methods for chemical datasets.
-Home-page: https://github.com/gbonavina/AugChem/tree/develop
+Home-page: https://gbonavina.github.io/AugChem/reference/augchem/
 Author: Gabriel Bonavina
 Author-email: gabriel.bonavina@unifesp.br
 License: MIT
