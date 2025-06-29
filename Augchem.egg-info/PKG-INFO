@@ -19,8 +19,214 @@ Requires-Dist: torch-geometric==2.6.1
 Dynamic: author
 Dynamic: author-email
 Dynamic: classifier
+Dynamic: description
 Dynamic: description-content-type
 Dynamic: home-page
 Dynamic: license
 Dynamic: requires-dist
 Dynamic: summary
+
+# AugChem 🧪
+
+[![Documentation](https://img.shields.io/badge/docs-available-brightgreen)](https://gbonavina.github.io/AugChem/)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+A comprehensive Python toolbox for **chemical data augmentation** developed in partnership with CINE and FAPESP. AugChem provides state-of-the-art techniques for augmenting molecular data across multiple representations.
+
+## 🚀 Features
+
+### Multi-Modal Augmentation
+- **SMILES**: String-based molecular representation augmentation
+- **Molecular Graphs**: Advanced graph-based augmentation using PyTorch Geometric
+- **InChI**: International Chemical Identifier augmentation
+
+### 🔬 Graph Augmentation Techniques
+- **Edge Dropping**: Systematic removal of molecular bonds for structural variation
+- **Node Dropping**: Atomic removal while preserving molecular validity  
+- **Feature Masking**: Node feature perturbation for robust representation learning
+- **Edge Perturbation**: Dynamic bond addition and removal for chemical space exploration
+
+### ⚡ PyTorch Geometric Integration
+- Native support for modern graph neural network workflows
+- Optimized batch processing for deep learning applications
+- Comprehensive molecular graph analytics and visualization
+- Self-loop management for clean augmentation pipelines
+
+## 📦 Installation
+
+```bash
+pip install augchem
+```
+
+Or install from source:
+```bash
+git clone https://github.com/gbonavina/AugChem.git
+cd AugChem
+pip install -e .
+```
+
+## 🔧 Dependencies
+- `torch >= 2.0.0`
+- `torch-geometric >= 2.3.0`
+- `rdkit >= 2023.3.1`
+- `numpy >= 1.21.0`
+- `pandas >= 1.3.0`
+- `matplotlib >= 3.5.0`
+
+## 🚀 Quick Start
+
+### Graph Augmentation
+
+```python
+from augchem.modules.graph.graphs_modules import augment_dataset
+import torch
+from torch_geometric.data import Data
+
+# Load your molecular graphs
+graphs = [
+    Data(x=torch.randn(10, 9), edge_index=torch.randint(0, 10, (2, 20))),
+    Data(x=torch.randn(8, 9), edge_index=torch.randint(0, 8, (2, 16)))
+]
+
+# Apply comprehensive augmentation
+augmented_graphs = augment_dataset(
+    graphs=graphs,
+    augmentation_methods=['edge_drop', 'node_drop', 'feature_mask', 'edge_perturb'],
+    edge_drop_rate=0.1,
+    node_drop_rate=0.05,
+    feature_mask_rate=0.15,
+    augment_percentage=0.3,  # 30% more data
+    seed=42
+)
+
+print(f"Original: {len(graphs)} → Augmented: {len(augmented_graphs)} graphs")
+```
+
+### Individual Techniques
+
+```python
+from augchem.modules.graph.graphs_modules import (
+    edge_dropping, node_dropping, feature_masking, edge_perturbation
+)
+
+# Apply individual techniques
+original_graph = graphs[0]
+
+# Remove 10% of edges
+graph_edge_drop = edge_dropping(original_graph, drop_rate=0.1)
+
+# Remove 5% of nodes  
+graph_node_drop = node_dropping(original_graph, drop_rate=0.05)
+
+# Mask 15% of features
+graph_masked = feature_masking(original_graph, mask_rate=0.15)
+
+# Perturb edges (add 3%, remove 5%)
+graph_perturbed = edge_perturbation(original_graph, add_rate=0.03, remove_rate=0.05)
+```
+
+### Working with SDF Files
+
+```python
+from your_loader import TorchGeometricSDFLoader
+from torch_geometric.transforms import NormalizeFeatures
+
+# Load from SDF file
+loader = TorchGeometricSDFLoader(
+    sdf_path="molecules.sdf",
+    transform=NormalizeFeatures()
+)
+
+# Load and convert molecules
+molecules = loader.load_sdf(max_molecules=1000)
+graphs = loader.convert_to_torch_geometric_graphs(add_self_loops=False)
+
+# Create DataLoader for training
+dataloader = loader.create_torch_geometric_dataloader(batch_size=32, shuffle=True)
+```
+
+## 📊 Graph Features
+
+### Node Features (9 dimensions per atom)
+1. **Atomic number** - Element identity
+2. **Degree** - Number of bonds
+3. **Formal charge** - Ionic charge
+4. **Hybridization** - Orbital hybridization type
+5. **Aromaticity** - Aromatic ring participation
+6. **Radical electrons** - Unpaired electrons
+7. **Total hydrogens** - Hydrogen count
+8. **Ring membership** - Ring structure participation
+9. **Atomic mass** - Element mass
+
+### Edge Features (4 dimensions per bond)
+1. **Bond type** - Single, double, triple, aromatic
+2. **Aromaticity** - Aromatic bond indicator  
+3. **Ring membership** - Ring bond indicator
+4. **Conjugation** - Conjugated system participation
+
+## 🎯 Use Cases
+
+- **Drug Discovery**: Molecular property prediction with enhanced datasets
+- **Materials Science**: Crystal structure and property augmentation  
+- **Chemical Informatics**: Robust molecular representation learning
+- **Graph Neural Networks**: Training data enhancement for chemical GNNs
+- **Cheminformatics Research**: Systematic molecular dataset expansion
+
+## 📖 Documentation
+
+Comprehensive documentation with tutorials and API reference:
+**https://gbonavina.github.io/AugChem/**
+
+### Key Sections
+- [Tutorial](https://gbonavina.github.io/AugChem/tutorial/) - Step-by-step guide
+- [Graph Methods](https://gbonavina.github.io/AugChem/reference/graphs_methods/) - Augmentation techniques
+- [Graph Module](https://gbonavina.github.io/AugChem/reference/graphs_module/) - Module overview
+- [Loader](https://gbonavina.github.io/AugChem/reference/loader/) - Data loading utilities
+
+## 🔬 Research
+
+This toolbox addresses the gap in chemical data augmentation for machine learning applications in materials chemistry. The effectiveness of ML models depends on data quality, making these augmentation techniques essential for improving model accuracy.
+
+### Citations
+If you use AugChem in your research, please cite:
+```bibtex
+@software{augchem2024,
+  title={AugChem: A Python Toolbox for Chemical Data Augmentation},
+  author={Gabriel Bonavina and Contributors},
+  year={2024},
+  url={https://github.com/gbonavina/AugChem}
+}
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md) for details.
+
+### Development Setup
+```bash
+git clone https://github.com/gbonavina/AugChem.git
+cd AugChem
+pip install -e ".[dev]"
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **CINE** - Computing in Engineering and Sciences Center
+- **FAPESP** - São Paulo Research Foundation  
+- **PyTorch Geometric** team for the excellent graph neural network library
+- **RDKit** community for chemical informatics tools
+
+## 📞 Support
+
+- 📧 Email: [your-email@domain.com]
+- 🐛 Issues: [GitHub Issues](https://github.com/gbonavina/AugChem/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/gbonavina/AugChem/discussions)
+
+---
+Made with ❤️ for the chemical informatics community

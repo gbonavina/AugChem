@@ -52,6 +52,14 @@ extra:
 
 nav:
   - Home: index.md
+  - Tutorials:
+      - Overview: tutorial.md
+      - SMILES Tutorial: smiles_tutorial.md
+      - Graph Tutorial: graph_tutorial.md
+  - Examples:
+      - Overview: examples.md
+      - SMILES Examples: smiles_examples.md
+      - Graph Examples: graph_examples.md
   - API Reference:
       - Augchem: reference/augchem.md
       - Loader: reference/loader.md
