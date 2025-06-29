@@ -92,6 +92,6 @@ Ready to enhance your molecular datasets? Choose your path:
 
 - **📚 [Tutorials](tutorial.md)** - Step-by-step learning guides
 - **💡 [Examples](examples.md)** - Practical applications and use cases  
-- **📖 [API Reference](reference/)** - Complete technical documentation
+- **📖 [API Reference](reference/augchem.md)** - Complete technical documentation
 
 Explore the comprehensive documentation to master both SMILES and graph augmentation techniques!

@@ -25,8 +25,8 @@ theme:
     - content.code.copy
     - content.code.annotate
 
-  logo: assets/logo.ico
-  favicon: assets/logo.png
+  logo: assets/logo.ico?v=3
+  favicon: assets/logo.png?v=3
 
 plugins:
   - search
