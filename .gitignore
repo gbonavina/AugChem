@@ -3,3 +3,7 @@ QM9.csv
 Augmented_QM9.csv
 test.ipynb
 requirements.txt
+data
+augmented_graphs.pt.pt
+pcqm_torch_geometric_graphs_clean.pt
+test2.ipynb

@@ -3,13 +3,19 @@ from rdkit import RDLogger
 from rdkit import Chem
 import numpy as np
 import pandas as pd
-from typing import List, Tuple, Optional, Required
+from typing import List
+import torch
+from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader as GeometricDataLoader
 from pathlib import Path
+
 from augchem.modules.smiles.smiles_modules import *
+from augchem.modules.graph.graphs_modules import *
+
 # disable rdkit warnings
 RDLogger.DisableLog('rdApp.*')
 
-class Loader:
+class QM9Loader:
     def __init__(self, path: Path):
         self.path = path
 
@@ -99,6 +105,152 @@ class Loader:
 
         dataframe.to_csv('QM9.csv', index=True, float_format='%.8e')
 
+class PCQM4mv2Loader:
+    def __init__(self, sdf_path: str, transform=None):
+        """
+        Inicializa o carregador de SDF
+        
+        Args:
+            sdf_path: Caminho para o arquivo SDF
+            transform: Transformações do torch_geometric a serem aplicadas
+        """
+        self.sdf_path = Path(sdf_path)
+        self.molecules = []
+        self.graphs = []
+        self.transform = transform
+        
+    def load_sdf(self, max_molecules: int = 10000) -> List[Chem.Mol]:
+        """
+        Carrega moléculas do arquivo SDF
+        
+        Args:
+            max_molecules: Número máximo de moléculas para carregar
+        
+        Returns:
+            Lista de moléculas RDKit
+        """
+        print(f"Carregando moléculas de: {self.sdf_path}")
+        
+        if not self.sdf_path.exists():
+            raise FileNotFoundError(f"Arquivo SDF não encontrado: {self.sdf_path}")
+        
+        supplier = Chem.SDMolSupplier(str(self.sdf_path))
+        molecules = []
+        counter = 0
+        
+        for i, mol in enumerate(supplier):
+            if mol is not None:
+                molecules.append(mol)
+                counter += 1
+                
+                if i % 1000 == 0:
+                    print(f"Carregadas {counter} moléculas...")
+                
+                if counter >= max_molecules:
+                    print(f"Limite de {max_molecules} moléculas atingido, parando o carregamento.")
+                    break
+            else:
+                if i % 1000 == 0:
+                    print(f"Molécula {i} é None, pulando...")
+        
+        self.molecules = molecules
+        print(f"Total de moléculas carregadas: {len(molecules)}")
+        return molecules
+    
+
+        """
+        Converte uma molécula RDKit em um objeto torch_geometric.data.Data
+        Usando apenas funcionalidades do torch_geometric
+        
+        Args:
+            mol: Molécula RDKit
+            target: Tensor alvo (propriedade) para a molécula
+            
+        Returns:
+            Objeto Data do PyTorch Geometric
+        """
+        # Características dos átomos usando torch
+        atom_features = []
+        for atom in mol.GetAtoms():
+            features = torch.tensor([
+                atom.GetAtomicNum(),
+                atom.GetDegree(),
+                atom.GetFormalCharge(),
+                int(atom.GetHybridization()),
+                int(atom.GetIsAromatic()),
+                atom.GetNumRadicalElectrons(),
+                atom.GetTotalNumHs(),
+                int(atom.IsInRing()),
+                atom.GetMass(),
+            ], dtype=torch.float)
+            atom_features.append(features)
+        
+        # Stack dos features dos átomos
+        x = torch.stack(atom_features, dim=0) if atom_features else torch.empty((0, 9))
+        
+        # Obter as arestas (ligações) como tensores
+        edge_indices = []
+        edge_attrs = []
+        
+        for bond in mol.GetBonds():
+            i = bond.GetBeginAtomIdx()
+            j = bond.GetEndAtomIdx()
+            
+            # Adicionar aresta em ambas as direções (grafo não direcionado)
+            edge_indices.extend([i, j])
+            edge_indices.extend([j, i])
+            
+            # Características da ligação como tensor
+            bond_features = torch.tensor([
+                bond.GetBondTypeAsDouble(),
+                int(bond.GetIsAromatic()),
+                int(bond.IsInRing()),
+                int(bond.GetIsConjugated()),
+            ], dtype=torch.float)
+            
+            edge_attrs.append(bond_features)
+            edge_attrs.append(bond_features)  # Para ambas as direções
+        
+        # Converter para tensores do torch_geometric
+        if edge_indices:
+            edge_index = torch.tensor(edge_indices, dtype=torch.long).view(2, -1)
+            edge_attr = torch.stack(edge_attrs, dim=0)
+        else:
+            edge_index = torch.empty((2, 0), dtype=torch.long)
+            edge_attr = torch.empty((0, 4), dtype=torch.float)
+        
+        # Criar objeto Data do torch_geometric
+        data = Data(
+            x=x,
+            edge_index=edge_index,
+            edge_attr=edge_attr,
+            num_nodes=mol.GetNumAtoms()
+        )
+        
+        # Adicionar target se fornecido
+        if target is not None:
+            data.y = target if isinstance(target, torch.Tensor) else torch.tensor([target], dtype=torch.float)
+        
+        # Aplicar transformações se especificadas
+        if self.transform:
+            data = self.transform(data)
+        
+        return data
+
+        """
+        Carrega grafos torch_geometric de um arquivo
+        
+        Args:
+            file_path: Caminho do arquivo
+            
+        Returns:
+            Lista de grafos carregados
+        """
+        # Usar weights_only=False para carregar objetos torch_geometric Data
+        graphs = torch.load(file_path, weights_only=False)
+        print(f"Grafos torch_geometric carregados de: {file_path}")
+        return graphs
+
 class Augmentator:        
     """
     Main class for molecular data augmentation across multiple representation formats.
@@ -168,7 +320,6 @@ class Augmentator:
         def __init__(self, parent):
             self.parent = parent
 
-        # Receber csv, colocar coluna extra de qual id veio o aumento, adicionar tag de qual metodo vai ser utilizado e aumento de %: inicial 1000 dados -> 1200 dados, essa é a %
         def augment_data(self, dataset: Path, mask_ratio: float = 0.1, delete_ratio: float = 0.3, seed: int = 42, 
                             augment_percentage: float = 0.2, augmentation_methods: List[str] = ["fusion", "enumerate"], col_to_augment: str = 'SMILES',
                             property_col: str = None) -> pd.DataFrame:
@@ -231,11 +382,120 @@ class Augmentator:
             return new_df
             
     class GraphsModule:
+        """
+        Module for augmenting molecular data in graphs format.
+
+        Provides methods for generating augmented graph representations using various
+        techniques including edge dropping, node dropping, feature masking, and edge perturbation.
+        """
         def __init__(self, parent):
             self.parent = parent
 
-        def augment_data(self, dataset: List[str]):
-            pass
+        def augment_data(self, dataset: List[Data], augmentation_methods: List[str] = ["edge_drop", "node_drop", "feature_mask", "edge_perturb"],
+                        edge_drop_rate: float = 0.1, node_drop_rate: float = 0.1, feature_mask_rate: float = 0.1,
+                        edge_add_rate: float = 0.05, edge_remove_rate: float = 0.05, augment_percentage: float = 0.2, 
+                        seed: int = 42, save_to_file: bool = False, output_path: str = "augmented_graphs") -> List[Data]:
+
+            """
+            Augment molecular graph data using various augmentation methods.
+
+            Parameters
+            ----------
+            `dataset` : List[Data]
+                List of torch_geometric Data objects representing molecular graphs to augment
+            `augmentation_methods` : List[str], default=["edge_drop", "node_drop", "feature_mask", "edge_perturb"]
+                List of augmentation methods to apply. Valid options include:
+                "edge_drop", "node_drop", "feature_mask", "edge_perturb"
+            `edge_drop_rate` : float, default=0.1
+                Fraction of edges to randomly drop when using edge dropping augmentation
+            `node_drop_rate` : float, default=0.1
+                Fraction of nodes to randomly drop when using node dropping augmentation
+            `feature_mask_rate` : float, default=0.1
+                Fraction of node features to randomly mask when using feature masking augmentation
+            `edge_add_rate` : float, default=0.05
+                Fraction of edges to randomly add when using edge adding augmentation
+            `edge_remove_rate` : float, default=0.05
+                Fraction of edges to randomly remove when using edge removing augmentation
+            `augment_percentage` : float, default=0.2
+                Target size of augmented dataset as a fraction of original dataset size
+            `seed` : int, default=42
+                Random seed for reproducible augmentation
+            `save_to_file` : bool, default=False
+                Whether to save the augmented graphs to a PyTorch file
+            `output_path` : str, default="augmented_graphs"
+                Path for output file (without .pt extension)
+            
+            Returns
+            -------
+            `List[Data]`
+                List of augmented torch_geometric Data objects representing molecular graphs
+            """
+
+            augmented_dataset = augment_dataset(graphs=dataset, augmentation_methods=augmentation_methods,
+                                               edge_drop_rate=edge_drop_rate, node_drop_rate=node_drop_rate,
+                                               feature_mask_rate=feature_mask_rate, edge_add_rate=edge_add_rate,
+                                               edge_remove_rate=edge_remove_rate, augment_percentage=augment_percentage,
+                                               seed=seed)
+            
+            if save_to_file:
+                self.save_graphs(augmented_dataset, output_path)
+            
+            return augmented_dataset
+
+        def save_graphs(self, graphs: List[Data], output_path: str = "augmented_graphs"):
+            """
+            Save augmented graphs using PyTorch's torch.save.
+            
+            Parameters
+            ----------
+            `graphs` : List[Data]
+                List of torch_geometric Data objects to save
+            `output_path` : str, default="augmented_graphs"
+                Path for output file (without .pt extension)
+            """
+            filepath = f"{output_path}.pt"
+            torch.save(graphs, filepath)
+            print(f"Saved {len(graphs)} augmented graphs to: {filepath}")
+
+        @staticmethod
+        def load_graphs(filepath: str) -> List[Data]:
+            """
+            Load previously saved augmented graphs.
+            
+            Parameters
+            ----------
+            `filepath` : str
+                Path to the saved PyTorch file (.pt)
+                
+            Returns
+            -------
+            `List[Data]`
+                List of loaded torch_geometric Data objects
+            """
+            graphs = torch.load(filepath, weights_only=False)
+            print(f"Loaded {len(graphs)} graphs from: {filepath}")
+            return graphs
+
+        def create_dataloader(self, graphs: List[Data], batch_size: int = 32, 
+                            shuffle: bool = True) -> GeometricDataLoader:
+            """
+            Create a DataLoader from graphs.
+            
+            Parameters
+            ----------
+            `graphs` : List[Data]
+                List of torch_geometric Data objects
+            `batch_size` : int, default=32
+                Batch size for the DataLoader
+            `shuffle` : bool, default=True
+                Whether to shuffle the data
+                
+            Returns
+            -------
+            `GeometricDataLoader`
+                Configured DataLoader ready for training
+            """
+            return GeometricDataLoader(graphs, batch_size=batch_size, shuffle=shuffle)
 
     class INCHIModule:
         def __init__(self, parent):
