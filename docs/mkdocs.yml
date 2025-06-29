@@ -66,11 +66,11 @@ nav:
       - Methods:
         - SMILES Methods: reference/smiles_methods.md
         - Graphs Methods: reference/graphs_methods.md
-        - INCHI Methods: reference/inchi_methods.md
+        # - INCHI Methods: reference/inchi_methods.md
       - Modules:
         - SMILES Module: reference/smiles_module.md
         - Graphs Module: reference/graphs_module.md
-        - INCHI Module: reference/inchi_module.md
+        # - INCHI Module: reference/inchi_module.md
         
 markdown_extensions:
   - admonition
