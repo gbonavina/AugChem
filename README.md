@@ -196,9 +196,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📧 Email: [your-email@domain.com]
 - 🐛 Issues: [GitHub Issues](https://github.com/gbonavina/AugChem/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/gbonavina/AugChem/discussions)
 
----
-Made with ❤️ for the chemical informatics community
+
