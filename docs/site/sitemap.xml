@@ -2,30 +2,58 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://gbonavina.github.io/AugChem/</loc>
-         <lastmod>2025-04-25</lastmod>
+         <lastmod>2025-06-29</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/examples/</loc>
+         <lastmod>2025-06-29</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/graph_examples/</loc>
+         <lastmod>2025-06-29</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/graph_tutorial/</loc>
+         <lastmod>2025-06-29</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/smiles_examples/</loc>
+         <lastmod>2025-06-29</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/smiles_tutorial/</loc>
+         <lastmod>2025-06-29</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/tutorial/</loc>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://gbonavina.github.io/AugChem/reference/augchem/</loc>
-         <lastmod>2025-04-25</lastmod>
+         <lastmod>2025-06-29</lastmod>
+    </url>
+    <url>
+         <loc>https://gbonavina.github.io/AugChem/reference/graphs_methods/</loc>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://gbonavina.github.io/AugChem/reference/graphs_module/</loc>
-         <lastmod>2025-04-25</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://gbonavina.github.io/AugChem/reference/inchi_module/</loc>
-         <lastmod>2025-04-25</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://gbonavina.github.io/AugChem/reference/loader/</loc>
-         <lastmod>2025-04-25</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://gbonavina.github.io/AugChem/reference/smiles_methods/</loc>
-         <lastmod>2025-04-25</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
     <url>
          <loc>https://gbonavina.github.io/AugChem/reference/smiles_module/</loc>
-         <lastmod>2025-04-25</lastmod>
+         <lastmod>2025-06-29</lastmod>
     </url>
 </urlset>
