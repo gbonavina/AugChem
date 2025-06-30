@@ -9,8 +9,9 @@ from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader as GeometricDataLoader
 from pathlib import Path
 
-from augchem.modules.smiles.smiles_modules import *
-from augchem.modules.graph.graphs_modules import *
+from augchem.modules.smiles.smiles_modules import augment_dataset as augment_smiles_dataset
+from augchem.modules.graph.graphs_modules import augment_dataset as augment_graph_dataset  
+
 
 # disable rdkit warnings
 RDLogger.DisableLog('rdApp.*')
@@ -308,7 +309,6 @@ class Augmentator:
 
         self.SMILES = self.SMILESModule(self)
         self.Graphs = self.GraphsModule(self)
-        self.INCHI = self.INCHIModule(self)
 
     class SMILESModule:
         """
@@ -320,8 +320,8 @@ class Augmentator:
         def __init__(self, parent):
             self.parent = parent
 
-        def augment_data(self, dataset: Path, mask_ratio: float = 0.1, delete_ratio: float = 0.3, seed: int = 42, 
-                            augment_percentage: float = 0.2, augmentation_methods: List[str] = ["fusion", "enumerate"], col_to_augment: str = 'SMILES',
+        def augment_data(self, dataset: Path, mask_ratio: float = 0.1, delete_ratio: float = 0.3, 
+                            augment_percentage: float = 0.2, augmentation_methods: List[str] = ["fusion", "enumeration"], col_to_augment: str = 'SMILES',
                             property_col: str = None) -> pd.DataFrame:
             """
             Augment molecular SMILES data from a CSV file.
@@ -367,11 +367,19 @@ class Augmentator:
             The augmented dataset is automatically saved to "Augmented_QM9.csv" in the
             current working directory.
             """
-            df = pd.read_csv(dataset)
-            new_df = augment_dataset(dataset=df, augmentation_methods=augmentation_methods, mask_ratio=mask_ratio, delete_ratio=delete_ratio, 
-                                       col_to_augment=col_to_augment, augment_percentage=augment_percentage, seed=seed,
-                                       property_col=property_col)
-            
+            df = pd.read_csv(dataset, index_col=0)
+
+            new_df = augment_smiles_dataset(
+                col_to_augment=col_to_augment,  
+                dataset=df,
+                augmentation_methods=augmentation_methods,
+                mask_ratio=mask_ratio,
+                property_col=property_col,  
+                delete_ratio=delete_ratio,
+                augment_percentage=augment_percentage,
+                seed=self.parent.seed
+            )
+
 
             new_df = new_df.drop_duplicates()
             new_df.to_csv(f"Augmented_{dataset}", index=True, float_format='%.8e')
@@ -431,7 +439,7 @@ class Augmentator:
                 List of augmented torch_geometric Data objects representing molecular graphs
             """
 
-            augmented_dataset = augment_dataset(graphs=dataset, augmentation_methods=augmentation_methods,
+            augmented_dataset = augment_graph_dataset(graphs=dataset, augmentation_methods=augmentation_methods,
                                                edge_drop_rate=edge_drop_rate, node_drop_rate=node_drop_rate,
                                                feature_mask_rate=feature_mask_rate, edge_add_rate=edge_add_rate,
                                                edge_remove_rate=edge_remove_rate, augment_percentage=augment_percentage,
@@ -496,10 +504,3 @@ class Augmentator:
                 Configured DataLoader ready for training
             """
             return GeometricDataLoader(graphs, batch_size=batch_size, shuffle=shuffle)
-
-    class INCHIModule:
-        def __init__(self, parent):
-            self.parent = parent    
-        
-        def augment_data(self, dataset: List[str]):
-            pass

@@ -2,6 +2,7 @@ import numpy as np
 from typing import List
 import torch
 from torch_geometric.data import Data
+from tqdm import tqdm
 
 def edge_dropping(data: Data, drop_rate: float = 0.1) -> Data:
     """
@@ -236,67 +237,68 @@ def augment_dataset(graphs: List[Data], augmentation_methods: List[str],
     augmented_graphs = []
     augmented_count = 0
     
-    
-    while augmented_count < target_new_graphs:
-        try:
-            iteration_augmented: List[Data] = []
-            
-            for method in augmentation_methods:
-                if method == "edge_drop":
-                    graph_to_augment = rng.randint(low=0, high=len(working_graphs))
-                    original_graph = working_graphs[graph_to_augment]
+    with tqdm(total=target_new_graphs, desc="🧪 Augmenting Graphs", unit="graph") as pbar:
+        while augmented_count < target_new_graphs:
+            try:
+                iteration_augmented: List[Data] = []
+                
+                for method in augmentation_methods:
+                    if method == "edge_drop":
+                        graph_to_augment = rng.randint(low=0, high=len(working_graphs))
+                        original_graph = working_graphs[graph_to_augment]
 
-                    augmented_graph = edge_dropping(
-                        original_graph, 
-                        drop_rate=edge_drop_rate
-                    )
-                elif method == "node_drop":
-                    graph_to_augment = rng.randint(low=0, high=len(working_graphs))
-                    original_graph = working_graphs[graph_to_augment]
-                
-                    augmented_graph = node_dropping(
-                        original_graph, 
-                        drop_rate=node_drop_rate
-                    )
-                elif method == "feature_mask":
-                    graph_to_augment = rng.randint(low=0, high=len(working_graphs))
-                    original_graph = working_graphs[graph_to_augment]
-                
+                        augmented_graph = edge_dropping(
+                            original_graph, 
+                            drop_rate=edge_drop_rate
+                        )
+                    elif method == "node_drop":
+                        graph_to_augment = rng.randint(low=0, high=len(working_graphs))
+                        original_graph = working_graphs[graph_to_augment]
+                    
+                        augmented_graph = node_dropping(
+                            original_graph, 
+                            drop_rate=node_drop_rate
+                        )
+                    elif method == "feature_mask":
+                        graph_to_augment = rng.randint(low=0, high=len(working_graphs))
+                        original_graph = working_graphs[graph_to_augment]
+                    
 
-                    augmented_graph = feature_masking(
-                        original_graph, 
-                        mask_rate=feature_mask_rate,
-                    )
-                elif method == "edge_perturb":
-                    graph_to_augment = rng.randint(low=0, high=len(working_graphs))
-                    original_graph = working_graphs[graph_to_augment]
+                        augmented_graph = feature_masking(
+                            original_graph, 
+                            mask_rate=feature_mask_rate,
+                        )
+                    elif method == "edge_perturb":
+                        graph_to_augment = rng.randint(low=0, high=len(working_graphs))
+                        original_graph = working_graphs[graph_to_augment]
+                    
+                        augmented_graph = edge_perturbation(
+                            original_graph, 
+                            add_rate=edge_add_rate,
+                            remove_rate=edge_remove_rate
+                        )
+          
+                    augmented_graph.augmentation_method = method
+                    augmented_graph.parent_idx = graph_to_augment
+                    
+                    iteration_augmented.append(augmented_graph)
                 
-                    augmented_graph = edge_perturbation(
-                        original_graph, 
-                        add_rate=edge_add_rate,
-                        remove_rate=edge_remove_rate
-                    )
-      
-                augmented_graph.augmentation_method = method
-                augmented_graph.parent_idx = graph_to_augment
+                unique_augmented = iteration_augmented[:target_new_graphs - augmented_count]
                 
-                iteration_augmented.append(augmented_graph)
-            
-            unique_augmented = iteration_augmented[:target_new_graphs - augmented_count]
-            
-            for aug_graph in unique_augmented:
-                augmented_graphs.append(aug_graph)
-                augmented_count += 1
+                for aug_graph in unique_augmented:
+                    augmented_graphs.append(aug_graph)
+                    augmented_count += 1
+                    pbar.update(1)
+                    
+                    if augmented_count >= target_new_graphs:
+                        break
                 
                 if augmented_count >= target_new_graphs:
                     break
-            
-            if augmented_count >= target_new_graphs:
-                break
-                
-        except Exception as e:
-            print(f"Error during augmentation: {e}")
-            continue
+                    
+            except Exception as e:
+                print(f"Error during augmentation: {e}")
+                continue
 
     all_graphs = working_graphs + augmented_graphs
 

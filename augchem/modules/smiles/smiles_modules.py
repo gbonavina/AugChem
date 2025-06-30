@@ -4,6 +4,7 @@ from rdkit import RDLogger
 import numpy as np
 import pandas as pd
 import re
+from tqdm import tqdm
 
 # disable rdkit warnings
 RDLogger.DisableLog('rdApp.*')
@@ -313,14 +314,12 @@ def fusion(smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3, see
     
     return augmented
 
-# mandar um email pro quiles pedindo um modelo lstm para testar o código
-# fazer a seleçao na hora de aplicar o método 
 def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_methods: List[str], mask_ratio: float = 0.1, property_col: str = None, delete_ratio: float = 0.3,
                      augment_percentage: float = 0.2, seed: int = 42):
     """
     Applies selected augmentation methods to SMILES strings in a dataset.
     
-    Generates augmented variants of molecular SMILES strings using specified methods
+        Generates augmented variants of molecular SMILES strings using specified methods
     and adds them to the dataset. Tracks relationships between original and augmented
     molecules using parent indices.
     
@@ -383,97 +382,100 @@ def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_met
     new_rows = []
     augmented_count = 0
 
-    while augmented_count < target_new_rows:
-        try:
-            augmented_smiles: List[str] = []
-            for method in augmentation_methods:
-                if method == "mask":
-                    row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
-                    original_idx = working_copy.index[row_to_augment]
-                    row = working_copy.iloc[row_to_augment].copy()
-                    
-                    smiles = row[col_to_augment]
-                    # print(f"Augmenting {smiles} with {method} method.")
+    # Adicionar apenas o tqdm aqui
+    with tqdm(total=target_new_rows, desc="🧪 Augmenting SMILES", unit="mol") as pbar:
+        while augmented_count < target_new_rows:
+            try:
+                augmented_smiles: List[str] = []
+                for method in augmentation_methods:
+                    if method == "mask":
+                        row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
+                        original_idx = working_copy.index[row_to_augment]
+                        row = working_copy.iloc[row_to_augment].copy()
+                        
+                        smiles = row[col_to_augment]
+                        # print(f"Augmenting {smiles} with {method} method.")
 
-                    augmented_smiles.append(mask(
-                        smiles,
-                        mask_ratio=mask_ratio,
-                        seed=rng
-                    ))
-                elif method == "delete":
-                    row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
-                    original_idx = working_copy.index[row_to_augment]
-                    row = working_copy.iloc[row_to_augment].copy()
-                    
-                    smiles = row[col_to_augment]
-                    # print(f"Augmenting {smiles} with {method} method.")
+                        augmented_smiles.append(mask(
+                            smiles,
+                            mask_ratio=mask_ratio,
+                            seed=rng
+                        ))
+                    elif method == "delete":
+                        row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
+                        original_idx = working_copy.index[row_to_augment]
+                        row = working_copy.iloc[row_to_augment].copy()
+                        
+                        smiles = row[col_to_augment]
+                        # print(f"Augmenting {smiles} with {method} method.")
 
-                    augmented_smiles.append(delete(
-                        smiles,
-                        delete_ratio=delete_ratio,
-                        seed=rng
-                    ))
-                elif method == "swap":
-                    row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
-                    original_idx = working_copy.index[row_to_augment]
-                    row = working_copy.iloc[row_to_augment].copy()
-                    
-                    smiles = row[col_to_augment]
-                    # print(f"Augmenting {smiles} with {method} method.")
+                        augmented_smiles.append(delete(
+                            smiles,
+                            delete_ratio=delete_ratio,
+                            seed=rng
+                        ))
+                    elif method == "swap":
+                        row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
+                        original_idx = working_copy.index[row_to_augment]
+                        row = working_copy.iloc[row_to_augment].copy()
+                        
+                        smiles = row[col_to_augment]
+                        # print(f"Augmenting {smiles} with {method} method.")
 
-                    augmented_smiles.append(swap(
-                        smiles,
-                        seed=rng
-                    ))
-                elif method == "fusion":
-                    row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
-                    original_idx = working_copy.index[row_to_augment]
-                    row = working_copy.iloc[row_to_augment].copy()
-                    
-                    smiles = row[col_to_augment]
-                    # print(f"Augmenting {smiles} with {method} method.")
+                        augmented_smiles.append(swap(
+                            smiles,
+                            seed=rng
+                        ))
+                    elif method == "fusion":
+                        row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
+                        original_idx = working_copy.index[row_to_augment]
+                        row = working_copy.iloc[row_to_augment].copy()
+                        
+                        smiles = row[col_to_augment]
+                        # print(f"Augmenting {smiles} with {method} method.")
 
-                    augmented_smiles.append(fusion(
-                        smiles,
-                        mask_ratio=mask_ratio,
-                        delete_ratio=delete_ratio,
-                        seed=rng
-                    ))
-                elif method == "enumeration":
-                    row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
-                    original_idx = working_copy.index[row_to_augment]
-                    row = working_copy.iloc[row_to_augment].copy()
-                    
-                    smiles = row[col_to_augment]
-                    # print(f"Augmenting {smiles} with {method} method.")
-                    
-                    augmented_smiles.append(enumerateSmiles(
-                        smiles
-                    ))
-                else:
-                    raise ValueError(f"Unknown augmentation method: {method}")
+                        augmented_smiles.append(fusion(
+                            smiles,
+                            mask_ratio=mask_ratio,
+                            delete_ratio=delete_ratio,
+                            seed=rng
+                        ))
+                    elif method == "enumeration":
+                        row_to_augment = rng.randint(low=0, high=(len(dataset)-1))
+                        original_idx = working_copy.index[row_to_augment]
+                        row = working_copy.iloc[row_to_augment].copy()
+                        
+                        smiles = row[col_to_augment]
+                        # print(f"Augmenting {smiles} with {method} method.")
+                        
+                        augmented_smiles.append(enumerateSmiles(
+                            smiles
+                        ))
+                    else:
+                        raise ValueError(f"Unknown augmentation method: {method}")
 
-            augmented_smiles = list(dict.fromkeys(augmented_smiles))
-            augmented_smiles = augmented_smiles[: target_new_rows - augmented_count]
+                augmented_smiles = list(dict.fromkeys(augmented_smiles))
+                augmented_smiles = augmented_smiles[: target_new_rows - augmented_count]
 
-            for aug_smiles in augmented_smiles:
-                new_row = row.copy()
-                new_row[col_to_augment] = aug_smiles
+                for aug_smiles in augmented_smiles:
+                    new_row = row.copy()
+                    new_row[col_to_augment] = aug_smiles
 
-                for prop_col in [c for c in new_row.index if c.startswith("Property_")]:
-                    new_row[prop_col] = "-"
-                new_row["parent_idx"] = original_idx
-                new_rows.append(new_row)
-                augmented_count += 1
+                    for prop_col in [c for c in new_row.index if c.startswith("Property_")]:
+                        new_row[prop_col] = "-"
+                    new_row["parent_idx"] = original_idx
+                    new_rows.append(new_row)
+                    augmented_count += 1
+                    pbar.update(1)  # Atualizar a barra de progresso
+                    if augmented_count >= target_new_rows:
+                        break
+
                 if augmented_count >= target_new_rows:
                     break
 
-            if augmented_count >= target_new_rows:
-                break
-
-        except Exception:
-            continue
-         
+            except Exception:
+                continue
+    
     filtered_df = dataset[[col_to_augment, property_col]].copy()
 
     if new_rows:
@@ -482,4 +484,5 @@ def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_met
         augmented_df = augmented_df.fillna("-1")
         
     return augmented_df
+    
     
