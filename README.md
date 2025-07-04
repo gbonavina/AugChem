@@ -166,8 +166,8 @@ If you use AugChem in your research, please cite:
 ```bibtex
 @software{augchem2024,
   title={AugChem: A Python Toolbox for Chemical Data Augmentation},
-  author={Gabriel Bonavina and Contributors},
-  year={2024},
+  author={Gabriel Bonavina, Marcos Quiles},
+  year={2025},
   url={https://github.com/gbonavina/AugChem}
 }
 ```
@@ -189,7 +189,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **CINE** - Computing in Engineering and Sciences Center
+- **CINE** - Center for Inovation on New Energies
 - **FAPESP** - São Paulo Research Foundation  
 - **PyTorch Geometric** team for the excellent graph neural network library
 - **RDKit** community for chemical informatics tools
