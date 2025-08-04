@@ -158,7 +158,7 @@ class PCQM4mv2Loader:
         print(f"Total de moléculas carregadas: {len(molecules)}")
         return molecules
     
-
+    def convert_molecule(self, mol, target):
         """
         Converte uma molécula RDKit em um objeto torch_geometric.data.Data
         Usando apenas funcionalidades do torch_geometric
@@ -238,6 +238,7 @@ class PCQM4mv2Loader:
         
         return data
 
+    def load_graphs(self, file_path):
         """
         Carrega grafos torch_geometric de um arquivo
         
@@ -322,7 +323,7 @@ class Augmentator:
 
         def augment_data(self, dataset: Path, mask_ratio: float = 0.1, delete_ratio: float = 0.3, 
                             augment_percentage: float = 0.2, augmentation_methods: List[str] = ["fusion", "enumeration"], col_to_augment: str = 'SMILES',
-                            property_col: str = None) -> pd.DataFrame:
+                            property_col: str = None, isUnsupervised: bool = False) -> pd.DataFrame:
             """
             Augment molecular SMILES data from a CSV file.
             
@@ -355,6 +356,9 @@ class Augmentator:
 
             `property_col` : str, optional
                 Column name containing property values to preserve in augmented data
+
+            `isUnsupervised` : bool, default=False
+                If True, sets property columns starting with "Property_" to "-" in augmented rows
                 
             Returns
             -------
@@ -377,6 +381,7 @@ class Augmentator:
                 property_col=property_col,  
                 delete_ratio=delete_ratio,
                 augment_percentage=augment_percentage,
+                isUnsupervised=isUnsupervised,
                 seed=self.parent.seed
             )
 

@@ -315,7 +315,7 @@ def fusion(smiles: str, mask_ratio: float = 0.05, delete_ratio: float = 0.3, see
     return augmented
 
 def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_methods: List[str], mask_ratio: float = 0.1, property_col: str = None, delete_ratio: float = 0.3,
-                     augment_percentage: float = 0.2, seed: int = 42):
+                     augment_percentage: float = 0.2, seed: int = 42, isUnsupervised: bool = False):
     """
     Applies selected augmentation methods to SMILES strings in a dataset.
     
@@ -348,6 +348,9 @@ def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_met
     
     `seed` : int, default=42
         Random seed for reproducibility
+
+    `isContrastive` : bool, default=False
+        If True, sets property columns starting with "Property_" to "-" in augmented rows
     
     Returns
     -------
@@ -461,8 +464,13 @@ def augment_dataset(col_to_augment: str, dataset: pd.DataFrame, augmentation_met
                     new_row = row.copy()
                     new_row[col_to_augment] = aug_smiles
 
-                    for prop_col in [c for c in new_row.index if c.startswith("Property_")]:
-                        new_row[prop_col] = "-"
+                    if isUnsupervised == True:
+                        for prop_col in [c for c in new_row.index if c.startswith("Property_")]:
+                            new_row[prop_col] = "-"
+                    else: 
+                        if property_col:
+                            new_row[property_col] = row[property_col]
+                            
                     new_row["parent_idx"] = original_idx
                     new_rows.append(new_row)
                     augmented_count += 1
