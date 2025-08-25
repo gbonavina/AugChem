@@ -341,9 +341,6 @@ class Augmentator:
             `delete_ratio` : float, default=0.3
                 Fraction of tokens to delete when using deletion-based augmentation methods
 
-            `seed` : int, default=42
-                Random seed for reproducible augmentation
-
             `augment_percentage` : float, default=0.2
                 Target size of augmented dataset as a fraction of original dataset size
 
